@@ -52,36 +52,35 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="ActionExecutor.cs" />
-    <Compile Include="AiChatClient.cs" />
-    <Compile Include="AssemblyHealthCheck.cs" />
-    <Compile Include="AssistantDockableWindow.cs" />
-    <Compile Include="AssistantForm.cs">
+    <Compile Include="ETC\ActionExecutor.cs" />
+    <Compile Include="AI\AiChatClient.cs" />
+    <Compile Include="Analysis\AssemblyHealthCheck.cs" />
+    <Compile Include="ETC\AssistantDockableWindow.cs" />
+    <Compile Include="ETC\AssistantForm.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="AssistantForm.Designer.cs">
+    <Compile Include="ETC\AssistantForm.Designer.cs">
       <DependentUpon>AssistantForm.cs</DependentUpon>
     </Compile>
-    <Compile Include="AssistantPanel.cs">
+    <Compile Include="UI\AssistantPanel.cs">
       <SubType>UserControl</SubType>
     </Compile>
-    <Compile Include="BomExporter.cs" />
-    <Compile Include="ChatHistoryManager.cs" />
-    <Compile Include="ConstraintAnalyzer.cs" />
-    <Compile Include="DrawingAutomation.cs" />
-    <Compile Include="FeatureErrorDectector.cs" />
-    <Compile Include="GeometryAnalysis.cs" />
-    <Compile Include="HolePatternCalculator.cs" />
-    <Compile Include="HoleThreadReader.cs" />
-    <Compile Include="ILogicGenerator.cs" />
-    <Compile Include="InterferenceDetector.cs" />
-    <Compile Include="KeyboardHook.cs" />
-    <Compile Include="ParameterValidator.cs" />
-    <Compile Include="PartNumberManger.cs" />
-    <Compile Include="PictureConverter.cs">
+    <Compile Include="ETC\BomExporter.cs" />
+    <Compile Include="AI\ChatHistoryManager.cs" />
+    <Compile Include="Analysis\ConstraintAnalyzer.cs" />
+    <Compile Include="ETC\DrawingAutomation.cs" />
+    <Compile Include="ETC\FeatureErrorDectector.cs" />
+    <Compile Include="Analysis\GeometryAnalysis.cs" />
+    <Compile Include="HVAC\HolePatternCalculator.cs" />
+    <Compile Include="HVAC\HoleThreadReader.cs" />
+    <Compile Include="HVAC\ILogicGenerator.cs" />
+    <Compile Include="ETC\InterferenceDetector.cs" />
+    <Compile Include="ETC\ParameterValidator.cs" />
+    <Compile Include="Data\PartNumberManger.cs" />
+    <Compile Include="UI\PictureConverter.cs">
       <SubType>Component</SubType>
     </Compile>
-    <Compile Include="PromptTextBox.cs">
+    <Compile Include="AI\PromptTextBox.cs">
       <SubType>Component</SubType>
     </Compile>
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -90,15 +89,15 @@
       <DesignTime>True</DesignTime>
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
-    <Compile Include="SelectionEngine.cs" />
-    <Compile Include="SheetMetalHandler.cs" />
-    <Compile Include="SketchAnalyzer.cs" />
-    <Compile Include="StandardAddInServer.cs" />
-    <Compile Include="VaultSearchHandler.cs" />
-    <Compile Include="WriteActionsHandler.cs" />
+    <Compile Include="ETC\SelectionEngine.cs" />
+    <Compile Include="HVAC\SheetMetalHandler.cs" />
+    <Compile Include="Analysis\SketchAnalyzer.cs" />
+    <Compile Include="Core\StandardAddInServer.cs" />
+    <Compile Include="Automation\VaultSearchHandler.cs" />
+    <Compile Include="ETC\WriteActionsHandler.cs" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="AssistantForm.resx">
+    <EmbeddedResource Include="ETC\AssistantForm.resx">
       <DependentUpon>AssistantForm.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Properties\Resources.resx">
@@ -112,5 +111,6 @@
   <ItemGroup>
     <None Include="Resources\AI32.png" />
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

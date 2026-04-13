@@ -13,7 +13,6 @@ namespace Inventor2023AIAssistant
         private Inventor.Application _inventorApplication;
         private ButtonDefinition _buttonDef;
         private AssistantDockableWindow _dockableWindow;
-        private KeyboardHook _keyboardHook;
 
         private readonly string _clientId =
             "{C3B2E8D3-7E5F-4A88-9E9E-1F4A8A202301}";
@@ -71,7 +70,6 @@ namespace Inventor2023AIAssistant
             _buttonDef.OnExecute += ButtonDef_OnExecute;
 
             CreateUserInterface();
-            InstallKeyboardHook();
 
             // Auto-open the assistant panel
             // every time Inventor starts
@@ -90,9 +88,6 @@ namespace Inventor2023AIAssistant
                         new AssistantDockableWindow(
                             _inventorApplication,
                             _clientId);
-
-                    _dockableWindow.SetKeyboardHook(
-                        _keyboardHook);
 
                     _dockableWindow.Create();
                 }
@@ -185,8 +180,6 @@ namespace Inventor2023AIAssistant
                         _inventorApplication,
                         _clientId);
 
-                _dockableWindow.SetKeyboardHook(_keyboardHook);
-
                 _dockableWindow.Create();
             }
             else
@@ -196,71 +189,12 @@ namespace Inventor2023AIAssistant
             }
         }
 
-        // ─── Keyboard hook ────────────────────────────────────────────
-
-        private void InstallKeyboardHook()
-        {
-            try
-            {
-                _keyboardHook = new KeyboardHook();
-
-                _keyboardHook.OnSpacePressed += () =>
-                {
-                    if (_dockableWindow != null &&
-                        _dockableWindow.IsVisible())
-                    {
-                        _dockableWindow
-                            .InsertSpaceFromInventor();
-                    }
-                };
-
-                _keyboardHook.OnEnterPressed += () =>
-                {
-                    if (_dockableWindow != null &&
-                        _dockableWindow.IsVisible())
-                    {
-                        _dockableWindow
-                            .SendEnterFromInventor();
-                    }
-                };
-
-                _keyboardHook.OnShiftEnterPressed += () =>
-                {
-                    if (_dockableWindow != null &&
-                        _dockableWindow.IsVisible())
-                    {
-                        _dockableWindow
-                            .InsertNewlineFromInventor();
-                    }
-                };
-
-                _keyboardHook.Install();
-            }
-            catch { }
-        }
-
-        private void UninstallKeyboardHook()
-        {
-            try
-            {
-                if (_keyboardHook != null)
-                {
-                    _keyboardHook.Uninstall();
-                    _keyboardHook.Dispose();
-                    _keyboardHook = null;
-                }
-            }
-            catch { }
-        }
-
         // ─── Deactivate ───────────────────────────────────────────────
 
         public void Deactivate()
         {
             try
             {
-                UninstallKeyboardHook();
-
                 if (_buttonDef != null)
                     _buttonDef.OnExecute -= ButtonDef_OnExecute;
 

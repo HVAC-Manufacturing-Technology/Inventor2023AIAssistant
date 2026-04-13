@@ -10,7 +10,6 @@ namespace Inventor2023AIAssistant
         private AssistantPanel _assistantPanel;
         private Inventor.Application _inventorApplication;
         private readonly string _clientId;
-        private KeyboardHook _keyboardHook;
 
         public AssistantDockableWindow(
             Inventor.Application inventorApplication,
@@ -18,11 +17,6 @@ namespace Inventor2023AIAssistant
         {
             _inventorApplication = inventorApplication;
             _clientId = clientId;
-        }
-
-        public void SetKeyboardHook(KeyboardHook hook)
-        {
-            _keyboardHook = hook;
         }
 
         // ─── Create ───────────────────────────────────────────────────
@@ -66,14 +60,6 @@ namespace Inventor2023AIAssistant
 
                 _assistantPanel = new AssistantPanel(
                     _inventorApplication);
-
-                // Register panel handle with hook so it
-                // only fires when the panel is focused
-                if (_keyboardHook != null)
-                {
-                    _keyboardHook.SetPanelHandle(
-                        _assistantPanel.Handle);
-                }
 
                 _dockableWindow.AddChild(
                     _assistantPanel.Handle);
