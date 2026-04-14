@@ -34,6 +34,9 @@ namespace Inventor2023AIAssistant
         private InterferenceDetector _interferenceDetector;
         private ConstraintAnalyzer _constraintAnalyzer;
         private ComponentVisibilityHandler _visibilityHandler;
+        private IPropertiesEditor _iPropertiesEditor;
+        private AssemblyStructureAnalyzer _structureAnalyzer;
+        private ViewCommandHandler _viewCommands;
         private List<string> _savedPrompts;
         private List<string> _promptHistory;
         private int _promptHistoryIndex = -1;
@@ -99,6 +102,15 @@ namespace Inventor2023AIAssistant
                 _inventorApplication);
             _visibilityHandler =
                 new ComponentVisibilityHandler(
+                    _inventorApplication);
+            _iPropertiesEditor =
+                new IPropertiesEditor(
+                    _inventorApplication);
+            _structureAnalyzer =
+                new AssemblyStructureAnalyzer(
+                    _inventorApplication);
+            _viewCommands =
+                new ViewCommandHandler(
                     _inventorApplication);
             _conversationHistory = new List<ChatMessage>();
             _savedPrompts = new List<string>();
@@ -292,6 +304,41 @@ namespace Inventor2023AIAssistant
                 "show iproperties panel",
                 "dock iproperties panel",
                 "display iproperties",
+
+                // ── iProperties Editor ────────────────────
+                "set part number to SAV-24R",
+                "set description to Fan Coil Unit",
+                "set revision to B",
+                "set designer to Blake Conner",
+                "set material to Galvanized Steel",
+                "set company to HVAC Manufacturing",
+                "set project to Job-1234",
+                "clear part number",
+                "clear description",
+
+                // ── Assembly Structure ────────────────────
+                "assembly structure",
+                "component hierarchy",
+                "assembly tree",
+                "count components",
+                "how many components",
+                "list sub assemblies",
+                "assembly summary",
+
+                // ── View Commands ─────────────────────────
+                "zoom to fit",
+                "home view",
+                "isometric view",
+                "top view",
+                "front view",
+                "right view",
+                "shaded view",
+                "shaded with edges",
+                "wireframe",
+                "zoom in",
+                "zoom out",
+                "previous view",
+                "orbit view",
 
                 // ── Parameters ────────────────────────────
                 "set Width to 24",
@@ -1222,6 +1269,42 @@ namespace Inventor2023AIAssistant
                     return;
                 }
 
+                // ─ iProperties editor
+                response =
+                    _iPropertiesEditor
+                        .TryHandleIPropertiesEdit(prompt);
+                if (response != null)
+                {
+                    Output(response);
+                    _chatHistory.LogAssistantMessage(
+                        response);
+                    return;
+                }
+
+                // ─ Assembly structure
+                response =
+                    _structureAnalyzer
+                        .TryHandleStructure(prompt);
+                if (response != null)
+                {
+                    Output(response);
+                    _chatHistory.LogAssistantMessage(
+                        response);
+                    return;
+                }
+
+                // ─ View commands
+                response =
+                    _viewCommands
+                        .TryHandleViewCommand(prompt);
+                if (response != null)
+                {
+                    Output(response);
+                    _chatHistory.LogAssistantMessage(
+                        response);
+                    return;
+                }
+
                 // ─ Selection engine
                 response =
                     _selectionEngine
@@ -1635,6 +1718,32 @@ namespace Inventor2023AIAssistant
                 "update <Name> to <Value>" +
                 System.Environment.NewLine +
                 System.Environment.NewLine +
+                "\u2500\u2500 iProperties Editor \u2500\u2500" +
+                System.Environment.NewLine +
+                "set part number to <value>, " +
+                "set description to <value>, " +
+                "set revision to <value>, " +
+                "set designer to <value>, " +
+                "set material to <value>, " +
+                "show iproperties, " +
+                "clear part number, clear description" +
+                System.Environment.NewLine +
+                System.Environment.NewLine +
+                "\u2500\u2500 Assembly Structure \u2500\u2500" +
+                System.Environment.NewLine +
+                "assembly structure, component hierarchy, " +
+                "assembly tree, count components, " +
+                "list sub assemblies, assembly summary" +
+                System.Environment.NewLine +
+                System.Environment.NewLine +
+                "\u2500\u2500 View Commands \u2500\u2500" +
+                System.Environment.NewLine +
+                "zoom to fit, home view, isometric view, " +
+                "top/front/right view, shaded view, " +
+                "shaded with edges, wireframe, " +
+                "zoom in, zoom out, orbit view" +
+                System.Environment.NewLine +
+                System.Environment.NewLine +
                 "\u2500\u2500 Visibility \u2500\u2500" +
                 System.Environment.NewLine +
                 "hide <name>, show <name>, " +
@@ -1708,7 +1817,7 @@ namespace Inventor2023AIAssistant
                 System.Environment.NewLine +
                 "Up arrow = previous prompt" +
                 System.Environment.NewLine +
-                "Library tab = 110+ pre-built prompts";
+                "Library tab = 130+ pre-built prompts";
         }
 
         private string GetActiveDocumentContext()

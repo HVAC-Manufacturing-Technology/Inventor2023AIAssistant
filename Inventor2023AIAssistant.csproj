@@ -52,6 +52,8 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AssemblyStructureAnalyzer.cs" />
+    <Compile Include="IPropertiesEditor.cs" />
     <Compile Include="UI\ComponentVisibilityHandler.cs" />
     <Compile Include="ETC\ActionExecutor.cs" />
     <Compile Include="AI\AiChatClient.cs" />
@@ -96,6 +98,7 @@
     <Compile Include="Core\StandardAddInServer.cs" />
     <Compile Include="Automation\VaultSearchHandler.cs" />
     <Compile Include="ETC\WriteActionsHandler.cs" />
+    <Compile Include="ViewCommandHandler.cs" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="ETC\AssistantForm.resx">
