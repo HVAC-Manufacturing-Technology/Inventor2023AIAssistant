@@ -33,6 +33,7 @@ namespace Inventor2023AIAssistant
         private SelectionEngine _selectionEngine;
         private InterferenceDetector _interferenceDetector;
         private ConstraintAnalyzer _constraintAnalyzer;
+        private ComponentVisibilityHandler _visibilityHandler;
         private List<string> _savedPrompts;
         private List<string> _promptHistory;
         private int _promptHistoryIndex = -1;
@@ -96,6 +97,9 @@ namespace Inventor2023AIAssistant
                     _inventorApplication);
             _constraintAnalyzer = new ConstraintAnalyzer(
                 _inventorApplication);
+            _visibilityHandler =
+                new ComponentVisibilityHandler(
+                    _inventorApplication);
             _conversationHistory = new List<ChatMessage>();
             _savedPrompts = new List<string>();
             _promptHistory = new List<string>();
@@ -224,7 +228,7 @@ namespace Inventor2023AIAssistant
                 (s, e) => RunSavedPrompt();
 
             _btnRunPrompt = new Button();
-            _btnRunPrompt.Text = "▶ Run";
+            _btnRunPrompt.Text = "\u25b6 Run";
             _btnRunPrompt.TabStop = false;
             _btnRunPrompt.BackColor =
                 System.Drawing.Color.FromArgb(0, 122, 204);
@@ -235,7 +239,7 @@ namespace Inventor2023AIAssistant
                 (s, e) => RunSavedPrompt();
 
             _btnDeletePrompt = new Button();
-            _btnDeletePrompt.Text = "✕ Delete";
+            _btnDeletePrompt.Text = "\u2715 Delete";
             _btnDeletePrompt.TabStop = false;
             _btnDeletePrompt.BackColor =
                 System.Drawing.Color.FromArgb(63, 63, 70);
@@ -283,6 +287,19 @@ namespace Inventor2023AIAssistant
                 "check interference",
                 "inspect",
 
+                // ── iProperties panel ─────────────────────
+                "open iproperties panel",
+                "show iproperties panel",
+                "dock iproperties panel",
+                "display iproperties",
+
+                // ── Parameters ────────────────────────────
+                "set Width to 24",
+                "set Height to 12",
+                "set Thickness to 0.040",
+                "set Length to 48",
+                "set BendRadius to 0.125",
+
                 // ── Sketches ──────────────────────────────
                 "create sketch on front plane",
                 "create sketch on top plane",
@@ -307,6 +324,7 @@ namespace Inventor2023AIAssistant
                 "create a 24x12 plate 0.040 thick",
                 "create a 48x24 plate 0.052 thick",
                 "create a cylinder radius 1 height 4",
+
                 // ── Selection ─────────────────────────────
                 "select all holes smaller than 0.25",
                 "select all holes smaller than 0.375",
@@ -319,6 +337,20 @@ namespace Inventor2023AIAssistant
                 "select suppressed features",
                 "show selection",
                 "deselect all",
+
+                // ── Visibility ────────────────────────────
+                "show all",
+                "hide all",
+                "show all components",
+                "suppress all",
+                "unsuppress all",
+                "list hidden components",
+                "list suppressed components",
+                "hide coil assembly",
+                "show coil assembly",
+                "suppress fasteners",
+                "unsuppress fasteners",
+                "toggle coil assembly",
 
                 // ── Interference ──────────────────────────
                 "run interference check",
@@ -334,6 +366,7 @@ namespace Inventor2023AIAssistant
                 "list constraints",
                 "find grounded components",
                 "degrees of freedom",
+
                 // ── Sketch analysis ───────────────────────
                 "sketch status",
                 "is this sketch fully constrained",
@@ -361,6 +394,7 @@ namespace Inventor2023AIAssistant
                 "tap drill 1/2-13",
                 "tap drill table",
                 "selected hole info",
+
                 // ── Hole pattern ──────────────────────────
                 "calculate hole pattern 4 holes on 8 inch bolt circle",
                 "calculate hole pattern 6 holes on 6 inch bolt circle",
@@ -384,6 +418,7 @@ namespace Inventor2023AIAssistant
                 "last used part number",
                 "part number registry",
                 "open part number folder",
+
                 // ── Geometry analysis ─────────────────────
                 "geometry report",
                 "surface area",
@@ -409,6 +444,7 @@ namespace Inventor2023AIAssistant
                 "find missing materials",
                 "duplicate part numbers",
                 "list all open documents",
+
                 // ── Drawing ───────────────────────────────
                 "new drawing",
                 "add all views",
@@ -487,7 +523,7 @@ namespace Inventor2023AIAssistant
                 _lstLibrary.Items.Add(p);
 
             _btnRunLibrary = new Button();
-            _btnRunLibrary.Text = "▶ Run";
+            _btnRunLibrary.Text = "\u25b6 Run";
             _btnRunLibrary.TabStop = false;
             _btnRunLibrary.BackColor =
                 System.Drawing.Color.FromArgb(0, 122, 204);
@@ -624,8 +660,10 @@ namespace Inventor2023AIAssistant
                     _promptHistory[_promptHistoryIndex];
                 _txtPrompt.SelectionStart =
                     _txtPrompt.TextLength;
+                return;
             }
-            else if (e.KeyCode == Keys.Down)
+
+            if (e.KeyCode == Keys.Down)
             {
                 e.Handled = true;
                 e.SuppressKeyPress = true;
@@ -643,6 +681,32 @@ namespace Inventor2023AIAssistant
                     _promptHistory[_promptHistoryIndex];
                 _txtPrompt.SelectionStart =
                     _txtPrompt.TextLength;
+                return;
+            }
+
+            if (e.KeyCode == Keys.Enter && e.Shift)
+            {
+                e.Handled = true;
+                e.SuppressKeyPress = true;
+                int pos = _txtPrompt.SelectionStart;
+                int len = _txtPrompt.SelectionLength;
+                string t = _txtPrompt.Text ?? string.Empty;
+                if (len > 0) t = t.Remove(pos, len);
+                t = t.Insert(pos,
+                    System.Environment.NewLine);
+                _txtPrompt.Text = t;
+                _txtPrompt.SelectionStart =
+                    pos + System.Environment.NewLine.Length;
+                _txtPrompt.SelectionLength = 0;
+                return;
+            }
+
+            if (e.KeyCode == Keys.Enter && !e.Shift)
+            {
+                e.Handled = true;
+                e.SuppressKeyPress = true;
+                this.BeginInvoke(
+                    new Action(() => _ = SendPromptAsync()));
             }
         }
 
@@ -698,7 +762,7 @@ namespace Inventor2023AIAssistant
             _txtPrompt.Clear();
             FocusPrompt();
             _txtOutput.AppendText(
-                "── New Chat Started ──" +
+                "\u2500\u2500 New Chat Started \u2500\u2500" +
                 System.Environment.NewLine +
                 System.Environment.NewLine);
         }
@@ -706,7 +770,7 @@ namespace Inventor2023AIAssistant
         private async Task RunConnectionDiagnosticAsync()
         {
             AppendOutput(
-                "── Connection Diagnostic ──" +
+                "\u2500\u2500 Connection Diagnostic \u2500\u2500" +
                 System.Environment.NewLine);
 
             string key =
@@ -716,7 +780,7 @@ namespace Inventor2023AIAssistant
             if (string.IsNullOrWhiteSpace(key))
             {
                 AppendOutput(
-                    "❌ GROQ_API_KEY is NOT set." +
+                    "\u274c GROQ_API_KEY is NOT set." +
                     System.Environment.NewLine +
                     "   Fix: set it in sysdm.cpl > " +
                     "Advanced > Environment Variables, " +
@@ -727,14 +791,14 @@ namespace Inventor2023AIAssistant
             }
 
             AppendOutput(
-                "✅ GROQ_API_KEY found: " +
+                "\u2705 GROQ_API_KEY found: " +
                 key.Substring(0, 8) + "..." +
                 System.Environment.NewLine);
 
             bool configured = _aiClient.IsConfigured();
 
             AppendOutput(
-                (configured ? "✅" : "❌") +
+                (configured ? "\u2705" : "\u274c") +
                 " IsConfigured() = " + configured +
                 System.Environment.NewLine);
 
@@ -749,7 +813,7 @@ namespace Inventor2023AIAssistant
             }
 
             AppendOutput(
-                "⏳ Sending test request to Groq..." +
+                "\u23f3 Sending test request to Groq..." +
                 System.Environment.NewLine);
 
             bool connected = false;
@@ -788,9 +852,10 @@ namespace Inventor2023AIAssistant
             if (connected)
             {
                 AppendOutput(
-                    "✅ Groq responded: " + testResponse +
+                    "\u2705 Groq responded: " +
+                    testResponse +
                     System.Environment.NewLine +
-                    "✅ Connection is working." +
+                    "\u2705 Connection is working." +
                     System.Environment.NewLine +
                     System.Environment.NewLine);
                 _aiAvailable = true;
@@ -799,7 +864,7 @@ namespace Inventor2023AIAssistant
             else
             {
                 AppendOutput(
-                    "❌ Groq request failed." +
+                    "\u274c Groq request failed." +
                     System.Environment.NewLine +
                     "   Response: " + testResponse +
                     System.Environment.NewLine +
@@ -862,14 +927,15 @@ namespace Inventor2023AIAssistant
             }
             if (aiAvailable)
             {
-                _lblStatus.Text = "● AI Connected";
+                _lblStatus.Text = "\u25cf AI Connected";
                 _lblStatus.ForeColor =
                     System.Drawing.Color.LimeGreen;
                 _btnNewChat.Text = "New Chat";
             }
             else
             {
-                _lblStatus.Text = "● Running in Local Mode";
+                _lblStatus.Text =
+                    "\u25cf Running in Local Mode";
                 _lblStatus.ForeColor =
                     System.Drawing.Color.OrangeRed;
                 _btnNewChat.Text = "Diagnose";
@@ -878,11 +944,12 @@ namespace Inventor2023AIAssistant
 
         public void FocusPrompt()
         {
-            if (_txtPrompt == null || _txtPrompt.IsDisposed)
-                return;
+            if (_txtPrompt == null ||
+                _txtPrompt.IsDisposed) return;
             if (_txtPrompt.InvokeRequired)
             {
-                _txtPrompt.Invoke(new Action(FocusPrompt));
+                _txtPrompt.Invoke(
+                    new Action(FocusPrompt));
                 return;
             }
             _tabControl.SelectedTab = _tabChat;
@@ -894,9 +961,10 @@ namespace Inventor2023AIAssistant
 
         public void InsertSpaceFromInventor()
         {
-            if (_txtPrompt == null || _txtPrompt.IsDisposed)
+            if (_txtPrompt == null ||
+                _txtPrompt.IsDisposed) return;
+            if (_tabControl.SelectedTab != _tabChat)
                 return;
-            if (_tabControl.SelectedTab != _tabChat) return;
             if (_txtPrompt.InvokeRequired)
             {
                 _txtPrompt.Invoke(
@@ -905,7 +973,8 @@ namespace Inventor2023AIAssistant
             }
             int start = _txtPrompt.SelectionStart;
             int length = _txtPrompt.SelectionLength;
-            string text = _txtPrompt.Text ?? string.Empty;
+            string text =
+                _txtPrompt.Text ?? string.Empty;
             if (length > 0)
                 text = text.Remove(start, length);
             text = text.Insert(start, " ");
@@ -916,23 +985,25 @@ namespace Inventor2023AIAssistant
 
         public void SendEnterFromInventor()
         {
-            if (_txtPrompt == null || _txtPrompt.IsDisposed)
-                return;
+            if (_txtPrompt == null ||
+                _txtPrompt.IsDisposed) return;
             if (this.InvokeRequired)
             {
                 this.Invoke(
                     new Action(SendEnterFromInventor));
                 return;
             }
-            if (_tabControl.SelectedTab != _tabChat) return;
+            if (_tabControl.SelectedTab != _tabChat)
+                return;
             _ = SendPromptAsync();
         }
 
         public void InsertNewlineFromInventor()
         {
-            if (_txtPrompt == null || _txtPrompt.IsDisposed)
+            if (_txtPrompt == null ||
+                _txtPrompt.IsDisposed) return;
+            if (_tabControl.SelectedTab != _tabChat)
                 return;
-            if (_tabControl.SelectedTab != _tabChat) return;
             if (_txtPrompt.InvokeRequired)
             {
                 _txtPrompt.Invoke(
@@ -941,24 +1012,133 @@ namespace Inventor2023AIAssistant
             }
             int start = _txtPrompt.SelectionStart;
             int length = _txtPrompt.SelectionLength;
-            string text = _txtPrompt.Text ?? string.Empty;
+            string text =
+                _txtPrompt.Text ?? string.Empty;
             if (length > 0)
                 text = text.Remove(start, length);
             text = text.Insert(
                 start, System.Environment.NewLine);
             _txtPrompt.Text = text;
             _txtPrompt.SelectionStart =
-                start + System.Environment.NewLine.Length;
+                start +
+                System.Environment.NewLine.Length;
             _txtPrompt.SelectionLength = 0;
         }
 
         public void LogKeyPress(int keyASCII) { }
 
+        private string TryHandleParameterModification(
+            string prompt)
+        {
+            string n = prompt.Trim().ToLowerInvariant();
+
+            bool isSet =
+                n.StartsWith("set ") ||
+                n.StartsWith("change ") ||
+                n.StartsWith("update ");
+
+            if (!isSet) return null;
+
+            string[] parts = prompt.Trim().Split(
+                new char[] { ' ' },
+                StringSplitOptions.RemoveEmptyEntries);
+
+            if (parts.Length < 4) return null;
+
+            int toIndex = -1;
+            for (int i = 1; i < parts.Length; i++)
+            {
+                if (parts[i].ToLower() == "to")
+                {
+                    toIndex = i;
+                    break;
+                }
+            }
+
+            if (toIndex < 0 ||
+                toIndex >= parts.Length - 1)
+                return null;
+
+            string paramName = string.Join(
+                " ", parts, 1, toIndex - 1);
+            string valueStr = parts[toIndex + 1];
+
+            if (string.IsNullOrWhiteSpace(paramName) ||
+                string.IsNullOrWhiteSpace(valueStr))
+                return null;
+
+            if (!double.TryParse(valueStr,
+                System.Globalization.NumberStyles.Any,
+                System.Globalization.CultureInfo
+                    .InvariantCulture,
+                out double newValue))
+                return null;
+
+            try
+            {
+                Document doc =
+                    _inventorApplication.ActiveDocument;
+                if (doc == null)
+                    return "No active document is open.";
+
+                Parameters parameters = null;
+
+                if (doc.DocumentType ==
+                    DocumentTypeEnum.kPartDocumentObject)
+                    parameters = ((PartDocument)doc)
+                        .ComponentDefinition.Parameters;
+                else if (doc.DocumentType ==
+                    DocumentTypeEnum
+                        .kAssemblyDocumentObject)
+                    parameters = ((AssemblyDocument)doc)
+                        .ComponentDefinition.Parameters;
+                else
+                    return
+                        "Parameter editing requires a " +
+                        "Part or Assembly document.";
+
+                Parameter found = null;
+                foreach (Parameter p in parameters)
+                {
+                    if (string.Equals(
+                        p.Name, paramName,
+                        StringComparison.OrdinalIgnoreCase))
+                    {
+                        found = p;
+                        break;
+                    }
+                }
+
+                if (found == null)
+                    return "Parameter '" + paramName +
+                           "' not found. " +
+                           "Type 'list parameters' " +
+                           "to see available parameters.";
+
+                double oldVal =
+                    (double)found.Value * 0.393701;
+
+                found.Expression = valueStr + " in";
+
+                return "\u2705 Parameter '" +
+                       found.Name +
+                       "' updated: " +
+                       Math.Round(oldVal, 4) +
+                       " in \u2192 " +
+                       valueStr + " in";
+            }
+            catch (Exception ex)
+            {
+                return "Failed to set parameter: " +
+                       ex.Message;
+            }
+        }
+
         private async Task SendPromptAsync()
         {
             if (_isStreaming) return;
-            if (_txtPrompt == null || _txtPrompt.IsDisposed)
-                return;
+            if (_txtPrompt == null ||
+                _txtPrompt.IsDisposed) return;
 
             string prompt = _txtPrompt.Text;
             if (string.IsNullOrWhiteSpace(prompt))
@@ -981,7 +1161,8 @@ namespace Inventor2023AIAssistant
             try
             {
                 string response = null;
-                string n = prompt.Trim().ToLowerInvariant();
+                string n =
+                    prompt.Trim().ToLowerInvariant();
 
                 if (n == "open chat history folder" ||
                     n == "open history folder")
@@ -1009,16 +1190,42 @@ namespace Inventor2023AIAssistant
                 if (n == "open vault explorer")
                 {
                     response =
-                        _vaultSearch.LaunchVaultExplorer();
+                        _vaultSearch
+                            .LaunchVaultExplorer();
                     Output(response);
                     _chatHistory.LogAssistantMessage(
                         response);
                     return;
                 }
+
+                // ─ Parameter modifier
+                response =
+                    TryHandleParameterModification(
+                        prompt);
+                if (response != null)
+                {
+                    Output(response);
+                    _chatHistory.LogAssistantMessage(
+                        response);
+                    return;
+                }
+
+                // ─ Visibility handler
+                response =
+                    _visibilityHandler
+                        .TryHandleVisibility(prompt);
+                if (response != null)
+                {
+                    Output(response);
+                    _chatHistory.LogAssistantMessage(
+                        response);
+                    return;
+                }
+
                 // ─ Selection engine
                 response =
-                    _selectionEngine.TryHandleSelection(
-                        prompt);
+                    _selectionEngine
+                        .TryHandleSelection(prompt);
                 if (response != null)
                 {
                     Output(response);
@@ -1050,6 +1257,7 @@ namespace Inventor2023AIAssistant
                         response);
                     return;
                 }
+
                 // ─ Sketch analyzer
                 response =
                     _sketchAnalyzer
@@ -1085,6 +1293,7 @@ namespace Inventor2023AIAssistant
                         response);
                     return;
                 }
+
                 // ─ Hole pattern calculator
                 response =
                     _holePattern.TryHandleHolePattern(
@@ -1108,7 +1317,8 @@ namespace Inventor2023AIAssistant
                         response);
                     return;
                 }
-                // 0 — Geometry analysis
+
+                // ─ Geometry analysis
                 response =
                     _geometryAnalysis.TryHandleGeometry(
                         prompt);
@@ -1120,7 +1330,7 @@ namespace Inventor2023AIAssistant
                     return;
                 }
 
-                // 0b — Parameter validation
+                // ─ Parameter validation
                 response =
                     _paramValidator.TryHandleValidation(
                         prompt);
@@ -1132,7 +1342,7 @@ namespace Inventor2023AIAssistant
                     return;
                 }
 
-                // 0c — Assembly health check
+                // ─ Assembly health check
                 response =
                     _healthCheck.TryHandleHealthCheck(
                         prompt);
@@ -1143,7 +1353,8 @@ namespace Inventor2023AIAssistant
                         response);
                     return;
                 }
-                // 1 — Drawing automation
+
+                // ─ Drawing automation
                 response =
                     _drawingAuto.TryHandleDrawing(prompt);
                 if (response != null)
@@ -1154,9 +1365,10 @@ namespace Inventor2023AIAssistant
                     return;
                 }
 
-                // 2 — Sheet metal
+                // ─ Sheet metal
                 response =
-                    _sheetMetal.TryHandleSheetMetal(prompt);
+                    _sheetMetal.TryHandleSheetMetal(
+                        prompt);
                 if (response != null)
                 {
                     Output(response);
@@ -1165,7 +1377,7 @@ namespace Inventor2023AIAssistant
                     return;
                 }
 
-                // 3 — BOM
+                // ─ BOM
                 response =
                     _bomExporter.TryHandleBom(prompt);
                 if (response != null)
@@ -1176,7 +1388,7 @@ namespace Inventor2023AIAssistant
                     return;
                 }
 
-                // 4 — Vault search
+                // ─ Vault search
                 response =
                     _vaultSearch.TryHandleVaultSearch(
                         prompt);
@@ -1188,7 +1400,7 @@ namespace Inventor2023AIAssistant
                     return;
                 }
 
-                // 5 — iLogic
+                // ─ iLogic
                 response =
                     _iLogicGenerator.TryHandleILogic(
                         prompt);
@@ -1200,7 +1412,7 @@ namespace Inventor2023AIAssistant
                     return;
                 }
 
-                // 6 — Write actions
+                // ─ Write actions
                 response =
                     _writeActions.TryHandleWriteAction(
                         prompt);
@@ -1212,7 +1424,7 @@ namespace Inventor2023AIAssistant
                     return;
                 }
 
-                // 7 — Action executor
+                // ─ Action executor
                 response =
                     _actionExecutor.TryExecuteAction(
                         prompt);
@@ -1224,7 +1436,7 @@ namespace Inventor2023AIAssistant
                     return;
                 }
 
-                // 8 — AI if connected
+                // ─ AI if connected
                 if (_aiAvailable)
                 {
                     string ctx =
@@ -1239,11 +1451,12 @@ namespace Inventor2023AIAssistant
                     return;
                 }
 
-                // 9 — Local fallback
+                // ─ Local fallback
                 response =
                     GetLocalFallbackResponse(prompt);
                 Output(response);
-                _chatHistory.LogAssistantMessage(response);
+                _chatHistory.LogAssistantMessage(
+                    response);
             }
             catch (Exception ex)
             {
@@ -1273,7 +1486,8 @@ namespace Inventor2023AIAssistant
 
             try
             {
-                await _aiClient.GetStreamingResponseAsync(
+                await _aiClient
+                    .GetStreamingResponseAsync(
                     _conversationHistory,
                     token =>
                     {
@@ -1292,8 +1506,10 @@ namespace Inventor2023AIAssistant
                     {
                         Action nl = () =>
                             _txtOutput.AppendText(
-                                System.Environment.NewLine +
-                                System.Environment.NewLine);
+                                System.Environment
+                                    .NewLine +
+                                System.Environment
+                                    .NewLine);
                         if (_txtOutput.InvokeRequired)
                             _txtOutput.Invoke(nl);
                         else
@@ -1326,12 +1542,13 @@ namespace Inventor2023AIAssistant
 
         private void AppendOutput(string text)
         {
-            if (_txtOutput == null || _txtOutput.IsDisposed)
-                return;
+            if (_txtOutput == null ||
+                _txtOutput.IsDisposed) return;
             if (_txtOutput.InvokeRequired)
             {
                 _txtOutput.Invoke(
-                    new Action<string>(AppendOutput), text);
+                    new Action<string>(AppendOutput),
+                    text);
                 return;
             }
             _txtOutput.AppendText(text);
@@ -1355,7 +1572,8 @@ namespace Inventor2023AIAssistant
                 data = GetSelectionData();
             else if (Contains(n, "feature", "features"))
                 data = GetFeaturesContext();
-            else if (Contains(n, "component", "components"))
+            else if (Contains(n,
+                "component", "components"))
                 data = GetComponentsContext();
             else
                 data = GetActiveDocumentContext();
@@ -1374,7 +1592,8 @@ namespace Inventor2023AIAssistant
             if (Contains(n, "what file", "active file",
                 "file open", "what document"))
                 return GetActiveDocumentInfo();
-            if (Contains(n, "list parameter", "parameters"))
+            if (Contains(n,
+                "list parameter", "parameters"))
                 return GetParametersData();
             if (Contains(n, "material"))
                 return GetMaterialData();
@@ -1397,15 +1616,44 @@ namespace Inventor2023AIAssistant
         private string GetHelpText()
         {
             return
-                "── Read ──" +
+                "\u2500\u2500 Read \u2500\u2500" +
                 System.Environment.NewLine +
                 "what file is open, list parameters, " +
                 "show material, show iproperties, " +
+                "open iproperties panel, " +
                 "what is selected, list features, " +
                 "list components, update mass, inspect" +
                 System.Environment.NewLine +
                 System.Environment.NewLine +
-                "── Drawing ──" +
+                "\u2500\u2500 Parameters \u2500\u2500" +
+                System.Environment.NewLine +
+                "set <Name> to <Value>  " +
+                "(e.g. 'set Width to 24')" +
+                System.Environment.NewLine +
+                "change <Name> to <Value>" +
+                System.Environment.NewLine +
+                "update <Name> to <Value>" +
+                System.Environment.NewLine +
+                System.Environment.NewLine +
+                "\u2500\u2500 Visibility \u2500\u2500" +
+                System.Environment.NewLine +
+                "hide <name>, show <name>, " +
+                "hide all, show all, " +
+                "suppress <name>, unsuppress <name>, " +
+                "suppress all, unsuppress all, " +
+                "toggle <name>, " +
+                "list hidden components, " +
+                "list suppressed components" +
+                System.Environment.NewLine +
+                System.Environment.NewLine +
+                "\u2500\u2500 iProperties Panel \u2500\u2500" +
+                System.Environment.NewLine +
+                "open iproperties panel, " +
+                "show iproperties panel, " +
+                "dock iproperties panel" +
+                System.Environment.NewLine +
+                System.Environment.NewLine +
+                "\u2500\u2500 Drawing \u2500\u2500" +
                 System.Environment.NewLine +
                 "new drawing, add all views, " +
                 "add front/top/right/isometric view, " +
@@ -1415,7 +1663,7 @@ namespace Inventor2023AIAssistant
                 "delete all views" +
                 System.Environment.NewLine +
                 System.Environment.NewLine +
-                "── Actions ──" +
+                "\u2500\u2500 Actions \u2500\u2500" +
                 System.Environment.NewLine +
                 "create sketch on [front/top/side] plane, " +
                 "draw circle/rectangle/line, finish sketch, " +
@@ -1424,42 +1672,43 @@ namespace Inventor2023AIAssistant
                 "create a cylinder radius [R] height [H]" +
                 System.Environment.NewLine +
                 System.Environment.NewLine +
-                "── Sheet Metal ──" +
+                "\u2500\u2500 Sheet Metal \u2500\u2500" +
                 System.Environment.NewLine +
                 "create sheet metal part, " +
                 "set thickness/gauge/bend radius/k-factor, " +
                 "create flat pattern, gauge table" +
                 System.Environment.NewLine +
                 System.Environment.NewLine +
-                "── BOM ──" +
+                "\u2500\u2500 BOM \u2500\u2500" +
                 System.Environment.NewLine +
                 "show bill of materials, " +
                 "export bom to excel/csv, " +
                 "list unique parts, count fasteners" +
                 System.Environment.NewLine +
                 System.Environment.NewLine +
-                "── Vault ──" +
+                "\u2500\u2500 Vault \u2500\u2500" +
                 System.Environment.NewLine +
                 "search vault, show checked out files, " +
-                "show recent vault files, open vault explorer" +
+                "show recent vault files, " +
+                "open vault explorer" +
                 System.Environment.NewLine +
                 System.Environment.NewLine +
-                "── iLogic ──" +
+                "\u2500\u2500 iLogic \u2500\u2500" +
                 System.Environment.NewLine +
                 "generate ilogic rule for [topic]" +
                 System.Environment.NewLine +
                 System.Environment.NewLine +
-                "── History ──" +
+                "\u2500\u2500 History \u2500\u2500" +
                 System.Environment.NewLine +
                 "show chat history sessions, " +
                 "open chat history folder" +
                 System.Environment.NewLine +
                 System.Environment.NewLine +
-                "── Tips ──" +
+                "\u2500\u2500 Tips \u2500\u2500" +
                 System.Environment.NewLine +
                 "Up arrow = previous prompt" +
                 System.Environment.NewLine +
-                "Library tab = 85+ pre-built prompts";
+                "Library tab = 110+ pre-built prompts";
         }
 
         private string GetActiveDocumentContext()
@@ -1475,13 +1724,15 @@ namespace Inventor2023AIAssistant
                     System.Environment.NewLine +
                     "Name: " + doc.DisplayName +
                     System.Environment.NewLine +
-                    "Type: " + GetDocumentTypeName(doc) +
+                    "Type: " +
+                    GetDocumentTypeName(doc) +
                     System.Environment.NewLine +
                     "Path: " + doc.FullFileName;
             }
             catch (Exception ex)
             {
-                return "[Context error: " + ex.Message + "]";
+                return "[Context error: " +
+                       ex.Message + "]";
             }
         }
 
@@ -1492,10 +1743,13 @@ namespace Inventor2023AIAssistant
                 Document doc =
                     _inventorApplication.ActiveDocument;
                 if (doc == null)
-                    return "No active document is open.";
+                    return
+                        "No active document is open.";
                 return
-                    "Active document: " + doc.DisplayName +
-                    " (" + GetDocumentTypeName(doc) + ")" +
+                    "Active document: " +
+                    doc.DisplayName +
+                    " (" + GetDocumentTypeName(doc) +
+                    ")" +
                     System.Environment.NewLine +
                     "Path: " + doc.FullFileName;
             }
@@ -1512,7 +1766,8 @@ namespace Inventor2023AIAssistant
                 Document doc =
                     _inventorApplication.ActiveDocument;
                 if (doc == null)
-                    return "No active document is open.";
+                    return
+                        "No active document is open.";
 
                 Parameters parameters = null;
 
@@ -1521,18 +1776,21 @@ namespace Inventor2023AIAssistant
                     parameters = ((PartDocument)doc)
                         .ComponentDefinition.Parameters;
                 else if (doc.DocumentType ==
-                    DocumentTypeEnum.kAssemblyDocumentObject)
+                    DocumentTypeEnum
+                        .kAssemblyDocumentObject)
                     parameters = ((AssemblyDocument)doc)
                         .ComponentDefinition.Parameters;
                 else
-                    return "Parameters only available " +
-                           "for Part and Assembly documents.";
+                    return
+                        "Parameters only available " +
+                        "for Part and Assembly documents.";
 
                 if (parameters == null ||
                     parameters.Count == 0)
                     return "No parameters found.";
 
-                var sb = new System.Text.StringBuilder();
+                var sb =
+                    new System.Text.StringBuilder();
                 sb.AppendLine("Parameters in " +
                     doc.DisplayName + ":");
                 sb.AppendLine(new string('-', 40));
@@ -1552,8 +1810,9 @@ namespace Inventor2023AIAssistant
             }
             catch (Exception ex)
             {
-                return "Failed to read parameters: " +
-                       ex.Message;
+                return
+                    "Failed to read parameters: " +
+                    ex.Message;
             }
         }
 
@@ -1564,12 +1823,14 @@ namespace Inventor2023AIAssistant
                 Document doc =
                     _inventorApplication.ActiveDocument;
                 if (doc == null)
-                    return "No active document is open.";
+                    return
+                        "No active document is open.";
 
                 if (doc.DocumentType ==
                     DocumentTypeEnum.kPartDocumentObject)
                 {
-                    PartDocument part = (PartDocument)doc;
+                    PartDocument part =
+                        (PartDocument)doc;
                     string mat =
                         part.ComponentDefinition
                             .Material.Name;
@@ -1588,10 +1849,11 @@ namespace Inventor2023AIAssistant
                         System.Environment.NewLine +
                         "Volume: " +
                         Math.Round(vol * 61.0237, 4) +
-                        " in³";
+                        " in\u00b3";
                 }
                 else if (doc.DocumentType ==
-                    DocumentTypeEnum.kAssemblyDocumentObject)
+                    DocumentTypeEnum
+                        .kAssemblyDocumentObject)
                 {
                     AssemblyDocument asm =
                         (AssemblyDocument)doc;
@@ -1599,7 +1861,8 @@ namespace Inventor2023AIAssistant
                         asm.ComponentDefinition
                            .MassProperties.Mass;
                     return "Assembly mass: " +
-                           Math.Round(mass * 2.20462, 4) +
+                           Math.Round(
+                               mass * 2.20462, 4) +
                            " lbs";
                 }
                 return "Material data not available.";
@@ -1618,21 +1881,25 @@ namespace Inventor2023AIAssistant
                 Document doc =
                     _inventorApplication.ActiveDocument;
                 if (doc == null)
-                    return "No active document is open.";
+                    return
+                        "No active document is open.";
 
-                var sb = new System.Text.StringBuilder();
+                var sb =
+                    new System.Text.StringBuilder();
                 sb.AppendLine("iProperties for " +
                     doc.DisplayName + ":");
                 sb.AppendLine(new string('-', 40));
 
-                foreach (PropertySet ps in doc.PropertySets)
+                foreach (PropertySet ps in
+                    doc.PropertySets)
                 {
                     foreach (Property prop in ps)
                     {
                         try
                         {
                             string val =
-                                Convert.ToString(prop.Value);
+                                Convert.ToString(
+                                    prop.Value);
                             if (!string.IsNullOrWhiteSpace(
                                     val))
                                 sb.AppendLine(
@@ -1646,8 +1913,9 @@ namespace Inventor2023AIAssistant
             }
             catch (Exception ex)
             {
-                return "Failed to read iProperties: " +
-                       ex.Message;
+                return
+                    "Failed to read iProperties: " +
+                    ex.Message;
             }
         }
 
@@ -1659,9 +1927,11 @@ namespace Inventor2023AIAssistant
                     _inventorApplication.ActiveDocument
                                         .SelectSet;
                 if (sel == null || sel.Count == 0)
-                    return "Nothing is currently selected.";
+                    return
+                        "Nothing is currently selected.";
 
-                var sb = new System.Text.StringBuilder();
+                var sb =
+                    new System.Text.StringBuilder();
                 sb.AppendLine("Selected items (" +
                     sel.Count + "):");
                 sb.AppendLine(new string('-', 40));
@@ -1671,25 +1941,31 @@ namespace Inventor2023AIAssistant
                 {
                     try
                     {
-                        string desc = item.GetType().Name;
+                        string desc =
+                            item.GetType().Name;
                         if (item is PartFeature pf)
-                            desc = "Feature: " + pf.Name;
+                            desc =
+                                "Feature: " + pf.Name;
                         else if (item is Face f)
                             desc = "Face (" +
                                    f.SurfaceType + ")";
                         else if (item is Edge)
                             desc = "Edge";
-                        else if (item is ComponentOccurrence co)
-                            desc = "Component: " + co.Name;
+                        else if (item is
+                            ComponentOccurrence co)
+                            desc =
+                                "Component: " + co.Name;
                         else if (item is Parameter p)
-                            desc = "Parameter: " + p.Name +
-                                   " = " + p.Expression;
+                            desc =
+                                "Parameter: " + p.Name +
+                                " = " + p.Expression;
                         sb.AppendLine(i + ". " + desc);
                         i++;
                     }
                     catch
                     {
-                        sb.AppendLine(i + ". (unreadable)");
+                        sb.AppendLine(
+                            i + ". (unreadable)");
                         i++;
                     }
                 }
@@ -1714,7 +1990,8 @@ namespace Inventor2023AIAssistant
                     return "[Features not available.]";
 
                 PartDocument part = (PartDocument)doc;
-                var sb = new System.Text.StringBuilder();
+                var sb =
+                    new System.Text.StringBuilder();
                 sb.AppendLine("[Features in " +
                     doc.DisplayName + "]");
 
@@ -1725,7 +2002,8 @@ namespace Inventor2023AIAssistant
                     {
                         string s = f.Suppressed ?
                             " (suppressed)" : "";
-                        sb.AppendLine("- " + f.Name + s);
+                        sb.AppendLine(
+                            "- " + f.Name + s);
                     }
                     catch { }
                 }
@@ -1733,7 +2011,8 @@ namespace Inventor2023AIAssistant
             }
             catch (Exception ex)
             {
-                return "[Features error: " + ex.Message + "]";
+                return "[Features error: " +
+                       ex.Message + "]";
             }
         }
 
@@ -1745,11 +2024,15 @@ namespace Inventor2023AIAssistant
                     _inventorApplication.ActiveDocument;
                 if (doc == null ||
                     doc.DocumentType !=
-                    DocumentTypeEnum.kAssemblyDocumentObject)
-                    return "[Components not available.]";
+                    DocumentTypeEnum
+                        .kAssemblyDocumentObject)
+                    return
+                        "[Components not available.]";
 
-                AssemblyDocument asm = (AssemblyDocument)doc;
-                var sb = new System.Text.StringBuilder();
+                AssemblyDocument asm =
+                    (AssemblyDocument)doc;
+                var sb =
+                    new System.Text.StringBuilder();
                 sb.AppendLine("[Components in " +
                     doc.DisplayName + "]");
 
@@ -1760,7 +2043,8 @@ namespace Inventor2023AIAssistant
                     {
                         string v = occ.Visible ?
                             "" : " (hidden)";
-                        sb.AppendLine("- " + occ.Name + v);
+                        sb.AppendLine(
+                            "- " + occ.Name + v);
                     }
                     catch { }
                 }
@@ -1778,33 +2062,44 @@ namespace Inventor2023AIAssistant
             return
                 "Recommended inspection checklist:" +
                 System.Environment.NewLine +
-                "1. Parameters — design intent and errors" +
+                "1. Parameters \u2014 " +
+                "design intent and errors" +
                 System.Environment.NewLine +
-                "2. Material — matches manufacturing requirements" +
+                "2. Material \u2014 " +
+                "matches manufacturing requirements" +
                 System.Environment.NewLine +
-                "3. iProperties — Part Number and Description" +
+                "3. iProperties \u2014 " +
+                "Part Number and Description" +
                 System.Environment.NewLine +
-                "4. Feature health — warnings in Model browser" +
+                "4. Feature health \u2014 " +
+                "warnings in Model browser" +
                 System.Environment.NewLine +
-                "5. Sketches — under-constrained references" +
+                "5. Sketches \u2014 " +
+                "under-constrained references" +
                 System.Environment.NewLine +
-                "6. Sheet metal — flat pattern and bends" +
+                "6. Sheet metal \u2014 " +
+                "flat pattern and bends" +
                 System.Environment.NewLine +
-                "7. Origin — sensible for assembly use" +
+                "7. Origin \u2014 " +
+                "sensible for assembly use" +
                 System.Environment.NewLine +
-                "8. Drawing readiness — " +
+                "8. Drawing readiness \u2014 " +
                 "parameter-driven dimensions";
         }
 
-        private string GetDocumentTypeName(Document doc)
+        private string GetDocumentTypeName(
+            Document doc)
         {
             switch (doc.DocumentType)
             {
-                case DocumentTypeEnum.kPartDocumentObject:
+                case DocumentTypeEnum
+                    .kPartDocumentObject:
                     return "Part";
-                case DocumentTypeEnum.kAssemblyDocumentObject:
+                case DocumentTypeEnum
+                    .kAssemblyDocumentObject:
                     return "Assembly";
-                case DocumentTypeEnum.kDrawingDocumentObject:
+                case DocumentTypeEnum
+                    .kDrawingDocumentObject:
                     return "Drawing";
                 case DocumentTypeEnum
                     .kPresentationDocumentObject:

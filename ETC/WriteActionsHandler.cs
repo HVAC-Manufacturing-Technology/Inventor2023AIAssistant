@@ -18,7 +18,8 @@ namespace Inventor2023AIAssistant
 
         public string TryHandleWriteAction(string prompt)
         {
-            string normalized = prompt.Trim().ToLowerInvariant();
+            string normalized =
+                prompt.Trim().ToLowerInvariant();
 
             if (normalized.StartsWith("set ") &&
                 normalized.Contains(" to "))
@@ -71,6 +72,15 @@ namespace Inventor2023AIAssistant
             if (normalized.StartsWith("generate parameters"))
                 return HandleGenerateParameters(prompt);
 
+            // ─ Open iProperties panel
+            if (normalized.Contains("iproperties") &&
+                (normalized.Contains("open") ||
+                 normalized.Contains("show") ||
+                 normalized.Contains("dock") ||
+                 normalized.Contains("panel") ||
+                 normalized.Contains("display")))
+                return OpenIPropertiesPanel();
+
             return null;
         }
 
@@ -88,7 +98,8 @@ namespace Inventor2023AIAssistant
                     return "Could not parse. " +
                            "Use: set [parameter] to [value]";
 
-                string paramName = parts[0].Substring(4).Trim();
+                string paramName =
+                    parts[0].Substring(4).Trim();
                 string newValue = parts[1].Trim();
 
                 Document doc =
@@ -97,7 +108,8 @@ namespace Inventor2023AIAssistant
                 if (doc == null)
                     return "No active document is open.";
 
-                Parameters parameters = GetParameters(doc);
+                Parameters parameters =
+                    GetParameters(doc);
 
                 if (parameters == null)
                     return "Parameters not available for " +
@@ -130,7 +142,8 @@ namespace Inventor2023AIAssistant
             }
             catch (Exception ex)
             {
-                return "Failed to set parameter: " + ex.Message;
+                return "Failed to set parameter: " +
+                       ex.Message;
             }
         }
 
@@ -154,7 +167,8 @@ namespace Inventor2023AIAssistant
                     return "Feature '" + featureName +
                            "' is already suppressed.";
 
-                if (!Confirm("Suppress feature: " + featureName))
+                if (!Confirm("Suppress feature: " +
+                        featureName))
                     return "Suppress cancelled by user.";
 
                 feature.Suppressed = true;
@@ -188,7 +202,8 @@ namespace Inventor2023AIAssistant
                     return "Feature '" + featureName +
                            "' is not suppressed.";
 
-                if (!Confirm("Unsuppress feature: " + featureName))
+                if (!Confirm("Unsuppress feature: " +
+                        featureName))
                     return "Unsuppress cancelled by user.";
 
                 feature.Suppressed = false;
@@ -198,7 +213,8 @@ namespace Inventor2023AIAssistant
             }
             catch (Exception ex)
             {
-                return "Failed to unsuppress: " + ex.Message;
+                return "Failed to unsuppress: " +
+                       ex.Message;
             }
         }
 
@@ -221,7 +237,8 @@ namespace Inventor2023AIAssistant
                 if (doc == null)
                     return "No active document is open.";
 
-                if (!Confirm("Create model state: " + stateName))
+                if (!Confirm("Create model state: " +
+                        stateName))
                     return "Cancelled by user.";
 
                 if (doc.DocumentType ==
@@ -238,8 +255,9 @@ namespace Inventor2023AIAssistant
                 }
                 else
                 {
-                    return "Model states are only available " +
-                           "for Part and Assembly documents.";
+                    return
+                        "Model states are only available " +
+                        "for Part and Assembly documents.";
                 }
 
                 return "Model state '" + stateName +
@@ -269,10 +287,12 @@ namespace Inventor2023AIAssistant
 
                 if (doc.DocumentType !=
                     DocumentTypeEnum.kAssemblyDocumentObject)
-                    return "Hide component is only available " +
-                           "for Assembly documents.";
+                    return
+                        "Hide component is only available " +
+                        "for Assembly documents.";
 
-                AssemblyDocument asm = (AssemblyDocument)doc;
+                AssemblyDocument asm =
+                    (AssemblyDocument)doc;
                 ComponentOccurrence occ =
                     FindComponent(asm, compName);
 
@@ -290,7 +310,8 @@ namespace Inventor2023AIAssistant
             }
             catch (Exception ex)
             {
-                return "Failed to hide component: " + ex.Message;
+                return "Failed to hide component: " +
+                       ex.Message;
             }
         }
 
@@ -311,10 +332,12 @@ namespace Inventor2023AIAssistant
 
                 if (doc.DocumentType !=
                     DocumentTypeEnum.kAssemblyDocumentObject)
-                    return "Show component is only available " +
-                           "for Assembly documents.";
+                    return
+                        "Show component is only available " +
+                        "for Assembly documents.";
 
-                AssemblyDocument asm = (AssemblyDocument)doc;
+                AssemblyDocument asm =
+                    (AssemblyDocument)doc;
                 ComponentOccurrence occ =
                     FindComponent(asm, compName);
 
@@ -332,7 +355,8 @@ namespace Inventor2023AIAssistant
             }
             catch (Exception ex)
             {
-                return "Failed to show component: " + ex.Message;
+                return "Failed to show component: " +
+                       ex.Message;
             }
         }
 
@@ -350,8 +374,9 @@ namespace Inventor2023AIAssistant
 
                 if (doc.DocumentType !=
                     DocumentTypeEnum.kPartDocumentObject)
-                    return "List features is only available " +
-                           "for Part documents.";
+                    return
+                        "List features is only available " +
+                        "for Part documents.";
 
                 PartDocument part = (PartDocument)doc;
                 var sb = new System.Text.StringBuilder();
@@ -360,16 +385,17 @@ namespace Inventor2023AIAssistant
                 sb.AppendLine(new string('-', 40));
 
                 int i = 1;
-
                 foreach (PartFeature f in
                     part.ComponentDefinition.Features)
                 {
                     try
                     {
                         string suppressed =
-                            f.Suppressed ? " [suppressed]" : "";
+                            f.Suppressed ?
+                            " [suppressed]" : "";
                         sb.AppendLine(
-                            i + ". " + f.Name + suppressed);
+                            i + ". " + f.Name +
+                            suppressed);
                         i++;
                     }
                     catch { }
@@ -379,7 +405,8 @@ namespace Inventor2023AIAssistant
             }
             catch (Exception ex)
             {
-                return "Failed to list features: " + ex.Message;
+                return "Failed to list features: " +
+                       ex.Message;
             }
         }
 
@@ -397,17 +424,18 @@ namespace Inventor2023AIAssistant
 
                 if (doc.DocumentType !=
                     DocumentTypeEnum.kAssemblyDocumentObject)
-                    return "List components is only available " +
-                           "for Assembly documents.";
+                    return
+                        "List components is only available " +
+                        "for Assembly documents.";
 
-                AssemblyDocument asm = (AssemblyDocument)doc;
+                AssemblyDocument asm =
+                    (AssemblyDocument)doc;
                 var sb = new System.Text.StringBuilder();
                 sb.AppendLine("Components in " +
                     doc.DisplayName + ":");
                 sb.AppendLine(new string('-', 40));
 
                 int i = 1;
-
                 foreach (ComponentOccurrence occ in
                     asm.ComponentDefinition.Occurrences)
                 {
@@ -426,7 +454,8 @@ namespace Inventor2023AIAssistant
             }
             catch (Exception ex)
             {
-                return "Failed to list components: " + ex.Message;
+                return "Failed to list components: " +
+                       ex.Message;
             }
         }
 
@@ -444,8 +473,9 @@ namespace Inventor2023AIAssistant
 
                 if (doc.DocumentType !=
                     DocumentTypeEnum.kAssemblyDocumentObject)
-                    return "Interference check is only available " +
-                           "for Assembly documents.";
+                    return
+                        "Interference check is only " +
+                        "available for Assembly documents.";
 
                 _inventorApplication.CommandManager
                     .ControlDefinitions[
@@ -490,7 +520,6 @@ namespace Inventor2023AIAssistant
                     double vol =
                         part.ComponentDefinition
                             .MassProperties.Volume;
-
                     return
                         "Mass properties updated:" +
                         System.Environment.NewLine +
@@ -498,16 +527,16 @@ namespace Inventor2023AIAssistant
                         Math.Round(mass, 4) + " kg" +
                         System.Environment.NewLine +
                         "Volume: " +
-                        Math.Round(vol * 1e6, 4) + " cm³";
+                        Math.Round(vol * 1e6, 4) + " cm\u00b3";
                 }
                 else if (doc.DocumentType ==
                     DocumentTypeEnum.kAssemblyDocumentObject)
                 {
-                    AssemblyDocument asm = (AssemblyDocument)doc;
+                    AssemblyDocument asm =
+                        (AssemblyDocument)doc;
                     double mass =
                         asm.ComponentDefinition
                            .MassProperties.Mass;
-
                     return "Assembly mass updated: " +
                            Math.Round(mass, 4) + " kg";
                 }
@@ -517,7 +546,8 @@ namespace Inventor2023AIAssistant
             }
             catch (Exception ex)
             {
-                return "Failed to update mass: " + ex.Message;
+                return "Failed to update mass: " +
+                       ex.Message;
             }
         }
 
@@ -541,7 +571,7 @@ namespace Inventor2023AIAssistant
                     return "No active document is open.";
 
                 if (!Confirm("Set Part Number to: " +
-                    newPartNumber))
+                        newPartNumber))
                     return "Cancelled by user.";
 
                 Property partNumProp =
@@ -576,7 +606,8 @@ namespace Inventor2023AIAssistant
 
                 if (string.IsNullOrWhiteSpace(newDescription))
                     return "Provide a description. " +
-                           "Example: set description HVAC Bracket";
+                           "Example: set description " +
+                           "HVAC Bracket";
 
                 Document doc =
                     _inventorApplication.ActiveDocument;
@@ -585,7 +616,7 @@ namespace Inventor2023AIAssistant
                     return "No active document is open.";
 
                 if (!Confirm("Set Description to: " +
-                    newDescription))
+                        newDescription))
                     return "Cancelled by user.";
 
                 Property descProp =
@@ -604,7 +635,8 @@ namespace Inventor2023AIAssistant
             }
             catch (Exception ex)
             {
-                return "Failed to set description: " + ex.Message;
+                return "Failed to set description: " +
+                       ex.Message;
             }
         }
 
@@ -634,9 +666,11 @@ namespace Inventor2023AIAssistant
                 using (var dlg = new SaveFileDialog())
                 {
                     dlg.Title = "Export as DXF";
-                    dlg.Filter = "DXF Files (*.dxf)|*.dxf";
+                    dlg.Filter =
+                        "DXF Files (*.dxf)|*.dxf";
                     dlg.FileName =
-                        System.IO.Path.GetFileName(defaultPath);
+                        System.IO.Path.GetFileName(
+                            defaultPath);
                     dlg.InitialDirectory =
                         System.IO.Path.GetDirectoryName(
                             doc.FullFileName);
@@ -646,15 +680,13 @@ namespace Inventor2023AIAssistant
 
                     string savePath = dlg.FileName;
 
-                    // Find the DXF/DWG translator add-in
                     TranslatorAddIn dxfTranslator = null;
-
                     foreach (ApplicationAddIn addIn in
-                        _inventorApplication.ApplicationAddIns)
+                        _inventorApplication
+                            .ApplicationAddIns)
                     {
                         try
                         {
-                            // DWG/DXF translator CLSID
                             if (addIn.ClassIdString ==
                                 "{C24E3AC2-122E-11D5-8E91-0010B541CD80}")
                             {
@@ -668,26 +700,30 @@ namespace Inventor2023AIAssistant
 
                     if (dxfTranslator == null)
                         return
-                            "DXF translator add-in not found." +
+                            "DXF translator add-in " +
+                            "not found." +
                             System.Environment.NewLine +
-                            "Make sure the Inventor DXF/DWG " +
-                            "export add-in is installed.";
+                            "Make sure the Inventor " +
+                            "DXF/DWG export add-in " +
+                            "is installed.";
 
                     TranslationContext context =
-                        _inventorApplication.TransientObjects
+                        _inventorApplication
+                            .TransientObjects
                             .CreateTranslationContext();
-
                     context.Type =
-                        IOMechanismEnum.kFileBrowseIOMechanism;
+                        IOMechanismEnum
+                            .kFileBrowseIOMechanism;
 
                     NameValueMap options =
-                        _inventorApplication.TransientObjects
+                        _inventorApplication
+                            .TransientObjects
                             .CreateNameValueMap();
 
                     DataMedium dataMedium =
-                        _inventorApplication.TransientObjects
+                        _inventorApplication
+                            .TransientObjects
                             .CreateDataMedium();
-
                     dataMedium.FileName = savePath;
 
                     dxfTranslator.SaveCopyAs(
@@ -700,7 +736,8 @@ namespace Inventor2023AIAssistant
             }
             catch (Exception ex)
             {
-                return "Failed to export DXF: " + ex.Message;
+                return "Failed to export DXF: " +
+                       ex.Message;
             }
         }
 
@@ -728,9 +765,11 @@ namespace Inventor2023AIAssistant
                 using (var dlg = new SaveFileDialog())
                 {
                     dlg.Title = "Export Drawing as PDF";
-                    dlg.Filter = "PDF Files (*.pdf)|*.pdf";
+                    dlg.Filter =
+                        "PDF Files (*.pdf)|*.pdf";
                     dlg.FileName =
-                        System.IO.Path.GetFileName(defaultPath);
+                        System.IO.Path.GetFileName(
+                            defaultPath);
                     dlg.InitialDirectory =
                         System.IO.Path.GetDirectoryName(
                             doc.FullFileName);
@@ -741,9 +780,9 @@ namespace Inventor2023AIAssistant
                     string savePath = dlg.FileName;
 
                     TranslatorAddIn pdfTranslator = null;
-
                     foreach (ApplicationAddIn addIn in
-                        _inventorApplication.ApplicationAddIns)
+                        _inventorApplication
+                            .ApplicationAddIns)
                     {
                         try
                         {
@@ -759,23 +798,27 @@ namespace Inventor2023AIAssistant
                     }
 
                     if (pdfTranslator == null)
-                        return "PDF translator add-in not found.";
+                        return
+                            "PDF translator add-in " +
+                            "not found.";
 
                     TranslationContext context =
-                        _inventorApplication.TransientObjects
+                        _inventorApplication
+                            .TransientObjects
                             .CreateTranslationContext();
-
                     context.Type =
-                        IOMechanismEnum.kFileBrowseIOMechanism;
+                        IOMechanismEnum
+                            .kFileBrowseIOMechanism;
 
                     NameValueMap options =
-                        _inventorApplication.TransientObjects
+                        _inventorApplication
+                            .TransientObjects
                             .CreateNameValueMap();
 
                     DataMedium dataMedium =
-                        _inventorApplication.TransientObjects
+                        _inventorApplication
+                            .TransientObjects
                             .CreateDataMedium();
-
                     dataMedium.FileName = savePath;
 
                     pdfTranslator.SaveCopyAs(
@@ -788,13 +831,15 @@ namespace Inventor2023AIAssistant
             }
             catch (Exception ex)
             {
-                return "Failed to export PDF: " + ex.Message;
+                return "Failed to export PDF: " +
+                       ex.Message;
             }
         }
 
         // ─── Generate parameters ──────────────────────────────────────
 
-        private string HandleGenerateParameters(string prompt)
+        private string HandleGenerateParameters(
+            string prompt)
         {
             try
             {
@@ -804,7 +849,8 @@ namespace Inventor2023AIAssistant
                 if (doc == null)
                     return "No active document is open.";
 
-                Parameters parameters = GetParameters(doc);
+                Parameters parameters =
+                    GetParameters(doc);
 
                 if (parameters == null)
                     return "Parameters not available for " +
@@ -813,18 +859,18 @@ namespace Inventor2023AIAssistant
                 string paramSection =
                     prompt.Trim()
                           .ToLower()
-                          .Replace("generate parameters", "")
+                          .Replace(
+                              "generate parameters", "")
                           .Trim();
 
                 if (string.IsNullOrWhiteSpace(paramSection))
-                    return "Provide parameters to generate. " +
-                           "Example: generate parameters " +
+                    return "Provide parameters to generate." +
+                           " Example: generate parameters " +
                            "Width=100 Height=200";
 
-                string[] pairs =
-                    paramSection.Split(
-                        new char[] { ' ' },
-                        StringSplitOptions.RemoveEmptyEntries);
+                string[] pairs = paramSection.Split(
+                    new char[] { ' ' },
+                    StringSplitOptions.RemoveEmptyEntries);
 
                 var created =
                     new System.Collections.Generic
@@ -835,13 +881,10 @@ namespace Inventor2023AIAssistant
 
                 foreach (string pair in pairs)
                 {
-                    if (!pair.Contains("="))
-                        continue;
+                    if (!pair.Contains("=")) continue;
 
                     string[] parts = pair.Split('=');
-
-                    if (parts.Length != 2)
-                        continue;
+                    if (parts.Length != 2) continue;
 
                     string name = parts[0].Trim();
                     string value = parts[1].Trim();
@@ -858,13 +901,9 @@ namespace Inventor2023AIAssistant
                                 value,
                                 UnitsTypeEnum
                                     .kDefaultDisplayLengthUnits);
-
                         created.Add(name + " = " + value);
                     }
-                    catch
-                    {
-                        skipped.Add(name);
-                    }
+                    catch { skipped.Add(name); }
                 }
 
                 if (created.Count == 0)
@@ -874,16 +913,15 @@ namespace Inventor2023AIAssistant
 
                 var sb = new System.Text.StringBuilder();
                 sb.AppendLine("Parameters created:");
-
                 foreach (string c in created)
-                    sb.AppendLine("  ✅ " + c);
+                    sb.AppendLine("  \u2705 " + c);
 
                 if (skipped.Count > 0)
                 {
                     sb.AppendLine(
                         "Skipped (already exist or invalid):");
                     foreach (string s in skipped)
-                        sb.AppendLine("  ⚠️ " + s);
+                        sb.AppendLine("  \u26a0\ufe0f " + s);
                 }
 
                 return sb.ToString();
@@ -891,6 +929,38 @@ namespace Inventor2023AIAssistant
             catch (Exception ex)
             {
                 return "Failed to generate parameters: " +
+                       ex.Message;
+            }
+        }
+
+        // ─── Open iProperties panel ───────────────────────────────────
+
+        private string OpenIPropertiesPanel()
+        {
+            try
+            {
+                Document doc =
+                    _inventorApplication.ActiveDocument;
+
+                if (doc == null)
+                    return "No active document is open.";
+
+                _inventorApplication.CommandManager
+                    .ControlDefinitions[
+                        "AppFilePropertiesCmd"]
+                    .Execute();
+
+                return
+                    "\u2705 iProperties panel opened for " +
+                    doc.DisplayName + "." +
+                    System.Environment.NewLine +
+                    "Tip: Type 'set part number to FPB-001'" +
+                    " to write iProperties directly " +
+                    "from chat.";
+            }
+            catch (Exception ex)
+            {
+                return "Failed to open iProperties: " +
                        ex.Message;
             }
         }
@@ -904,7 +974,7 @@ namespace Inventor2023AIAssistant
                 System.Environment.NewLine +
                 System.Environment.NewLine +
                 "Proceed?",
-                "AI Assistant — Confirm Action",
+                "AI Assistant \u2014 Confirm Action",
                 MessageBoxButtons.YesNo,
                 MessageBoxIcon.Question);
 
@@ -939,11 +1009,11 @@ namespace Inventor2023AIAssistant
                     return null;
 
                 PartDocument part = (PartDocument)doc;
-
                 foreach (PartFeature f in
                     part.ComponentDefinition.Features)
                 {
-                    if (string.Equals(f.Name, name,
+                    if (string.Equals(
+                        f.Name, name,
                         StringComparison.OrdinalIgnoreCase))
                         return f;
                 }
@@ -961,7 +1031,8 @@ namespace Inventor2023AIAssistant
                 foreach (ComponentOccurrence occ in
                     asm.ComponentDefinition.Occurrences)
                 {
-                    if (string.Equals(occ.Name, name,
+                    if (string.Equals(
+                        occ.Name, name,
                         StringComparison.OrdinalIgnoreCase))
                         return occ;
                 }

@@ -52,6 +52,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="UI\ComponentVisibilityHandler.cs" />
     <Compile Include="ETC\ActionExecutor.cs" />
     <Compile Include="AI\AiChatClient.cs" />
     <Compile Include="Analysis\AssemblyHealthCheck.cs" />
