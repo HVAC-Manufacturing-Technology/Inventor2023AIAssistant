@@ -53,28 +53,37 @@ namespace Inventor2023AIAssistant
             switch (prop)
             {
                 case "part number":
-                    return SetDesignProperty("Part Number", value);
+                    return SetDesignProperty(
+                        "Part Number", value);
 
                 case "description":
-                    return SetDesignProperty("Description", value);
+                    return SetDesignProperty(
+                        "Description", value);
 
                 case "revision":
-                    return SetDesignProperty("Revision Number", value);
+                case "revision number":
+                    return SetDesignProperty(
+                        "Revision Number", value);
 
                 case "designer":
-                    return SetDesignProperty("Designer", value);
+                    return SetDesignProperty(
+                        "Designer", value);
 
                 case "company":
-                    return SetSummaryProperty("Company", value);
+                    return SetSummaryProperty(
+                        "Company", value);
 
                 case "project":
-                    return SetDesignProperty("Project", value);
+                    return SetDesignProperty(
+                        "Project", value);
 
                 case "stock number":
-                    return SetDesignProperty("Stock Number", value);
+                    return SetDesignProperty(
+                        "Stock Number", value);
 
                 case "keywords":
-                    return SetSummaryProperty("Keywords", value);
+                    return SetSummaryProperty(
+                        "Keywords", value);
 
                 case "material":
                     return SetMaterial(value);
@@ -84,7 +93,60 @@ namespace Inventor2023AIAssistant
             }
         }
 
-        private string SetDesignProperty(string name, string value)
+        // ── Public setters (called by IPropertiesPanel) ───────────────
+
+        public string SetPropertyByName(
+            string name, string value)
+        {
+            string n = name.Trim().ToLowerInvariant();
+
+            switch (n)
+            {
+                case "part number":
+                    return SetDesignProperty(
+                        "Part Number", value);
+
+                case "description":
+                    return SetDesignProperty(
+                        "Description", value);
+
+                case "revision":
+                case "revision number":
+                    return SetDesignProperty(
+                        "Revision Number", value);
+
+                case "designer":
+                    return SetDesignProperty(
+                        "Designer", value);
+
+                case "company":
+                    return SetSummaryProperty(
+                        "Company", value);
+
+                case "project":
+                    return SetDesignProperty(
+                        "Project", value);
+
+                case "stock number":
+                    return SetDesignProperty(
+                        "Stock Number", value);
+
+                case "keywords":
+                    return SetSummaryProperty(
+                        "Keywords", value);
+
+                case "material":
+                    return SetMaterial(value);
+
+                default:
+                    return null;
+            }
+        }
+
+        // ── Private helpers ───────────────────────────────────────────
+
+        private string SetDesignProperty(
+            string name, string value)
         {
             try
             {
@@ -97,17 +159,19 @@ namespace Inventor2023AIAssistant
 
                 prop.Value = value;
 
-                return "✅ " + name +
+                return "\u2705 " + name +
                        " updated:\nFrom: " + oldVal +
                        "\nTo:   " + value;
             }
             catch (Exception ex)
             {
-                return "Failed to set " + name + ": " + ex.Message;
+                return "Failed to set " +
+                       name + ": " + ex.Message;
             }
         }
 
-        private string SetSummaryProperty(string name, string value)
+        private string SetSummaryProperty(
+            string name, string value)
         {
             try
             {
@@ -117,11 +181,12 @@ namespace Inventor2023AIAssistant
 
                 prop.Value = value;
 
-                return "✅ " + name + " updated.";
+                return "\u2705 " + name + " updated.";
             }
             catch (Exception ex)
             {
-                return "Failed to set " + name + ": " + ex.Message;
+                return "Failed to set " +
+                       name + ": " + ex.Message;
             }
         }
 
@@ -133,12 +198,15 @@ namespace Inventor2023AIAssistant
                     _app.ActiveDocument as PartDocument;
 
                 if (part == null)
-                    return "Material can only be set on a Part.";
+                    return
+                        "Material can only be set " +
+                        "on a Part.";
 
                 Material found = null;
 
                 foreach (Material m in
-                    part.ComponentDefinition.Material.Parent.Materials)
+                    part.ComponentDefinition
+                        .Material.Parent.Materials)
                 {
                     if (string.Equals(
                         m.Name, materialName,
@@ -150,19 +218,21 @@ namespace Inventor2023AIAssistant
                 }
 
                 if (found == null)
-                    return "Material not found: " + materialName;
+                    return "Material not found: " +
+                           materialName;
 
                 string oldMat =
                     part.ComponentDefinition.Material.Name;
 
                 part.ComponentDefinition.Material = found;
 
-                return "✅ Material updated:\nFrom: " +
+                return "\u2705 Material updated:\nFrom: " +
                        oldMat + "\nTo:   " + found.Name;
             }
             catch (Exception ex)
             {
-                return "Failed to set material: " + ex.Message;
+                return "Failed to set material: " +
+                       ex.Message;
             }
         }
 
@@ -171,20 +241,24 @@ namespace Inventor2023AIAssistant
             try
             {
                 Document doc = _app.ActiveDocument;
-                var sb = new System.Text.StringBuilder();
+                var sb =
+                    new System.Text.StringBuilder();
 
                 sb.AppendLine("iProperties:");
                 sb.AppendLine(new string('-', 30));
 
-                foreach (PropertySet ps in doc.PropertySets)
+                foreach (PropertySet ps in
+                    doc.PropertySets)
                 {
                     foreach (Property p in ps)
                     {
                         try
                         {
                             string v =
-                                Convert.ToString(p.Value);
-                            if (!string.IsNullOrWhiteSpace(v))
+                                Convert.ToString(
+                                    p.Value);
+                            if (!string
+                                .IsNullOrWhiteSpace(v))
                                 sb.AppendLine(
                                     p.Name + ": " + v);
                         }
@@ -196,7 +270,8 @@ namespace Inventor2023AIAssistant
             }
             catch (Exception ex)
             {
-                return "Failed to read iProperties: " + ex.Message;
+                return "Failed to read iProperties: " +
+                       ex.Message;
             }
         }
     }

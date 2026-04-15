@@ -71,78 +71,56 @@ namespace Inventor2023AIAssistant
                 if (doc.DocumentType ==
                     DocumentTypeEnum.kAssemblyDocumentObject)
                 {
-                    sb.AppendLine(
-                        "── Assembly Health Check ──");
-                    sb.AppendLine(
-                        "Assembly: " + doc.DisplayName);
+                    sb.AppendLine("── Assembly Health Check ──");
+                    sb.AppendLine("Assembly: " + doc.DisplayName);
                     sb.AppendLine(new string('═', 40));
 
-                    AssemblyDocument asm =
-                        (AssemblyDocument)doc;
+                    AssemblyDocument asm = (AssemblyDocument)doc;
 
                     int total =
-                        asm.ComponentDefinition
-                           .Occurrences.Count;
+                        asm.ComponentDefinition.Occurrences.Count;
 
-                    sb.AppendLine(
-                        "Total components: " + total);
+                    sb.AppendLine("Total components: " + total);
                     sb.AppendLine();
 
-                    // Suppressed
-                    var suppressed =
-                        new List<string>();
-                    var hidden =
-                        new List<string>();
-                    var noPartNumber =
-                        new List<string>();
-                    var noMaterial =
-                        new List<string>();
-                    var partNumbers =
-                        new Dictionary<string,
-                            List<string>>(
-                            StringComparer.OrdinalIgnoreCase);
+                    var suppressed = new List<string>();
+                    var hidden = new List<string>();
+                    var noPartNumber = new List<string>();
+                    var noMaterial = new List<string>();
+                    var partNumbers = new Dictionary<string,
+                        List<string>>(
+                        StringComparer.OrdinalIgnoreCase);
 
                     ScanOccurrences(
                         asm.ComponentDefinition.Occurrences,
-                        suppressed,
-                        hidden,
-                        noPartNumber,
-                        noMaterial,
+                        suppressed, hidden,
+                        noPartNumber, noMaterial,
                         partNumbers);
 
-                    // Suppressed
                     sb.AppendLine(
-                        "Suppressed components: " +
-                        suppressed.Count);
+                        "Suppressed components: " + suppressed.Count);
                     if (suppressed.Count > 0)
                         foreach (string s in suppressed)
                             sb.AppendLine("  ⚠️ " + s);
 
-                    // Hidden
                     sb.AppendLine(
-                        "Hidden components: " +
-                        hidden.Count);
+                        "Hidden components: " + hidden.Count);
                     if (hidden.Count > 0)
                         foreach (string s in hidden)
                             sb.AppendLine("  ℹ️ " + s);
 
-                    // Missing part numbers
                     sb.AppendLine(
-                        "Missing part numbers: " +
-                        noPartNumber.Count);
+                        "Missing part numbers: " + noPartNumber.Count);
                     if (noPartNumber.Count > 0)
                         foreach (string s in noPartNumber)
                             sb.AppendLine("  ❌ " + s);
 
-                    // Missing material
                     sb.AppendLine(
-                        "Missing/generic material: " +
-                        noMaterial.Count);
+                        "Missing/generic material: " + noMaterial.Count);
                     if (noMaterial.Count > 0)
                         foreach (string s in noMaterial)
                             sb.AppendLine("  ⚠️ " + s);
 
-                    // Duplicates
                     int dupCount = 0;
                     sb.AppendLine();
                     sb.AppendLine("Duplicate part numbers:");
@@ -152,53 +130,39 @@ namespace Inventor2023AIAssistant
                         {
                             sb.AppendLine(
                                 "  ⚠️ " + kvp.Key +
-                                " used by " +
-                                kvp.Value.Count +
+                                " used by " + kvp.Value.Count +
                                 " components");
                             dupCount++;
                         }
                     }
                     if (dupCount == 0)
-                        sb.AppendLine(
-                            "  ✅ No duplicates found");
+                        sb.AppendLine("  ✅ No duplicates found");
 
-                    // Summary
                     int totalIssues =
-                        noPartNumber.Count +
-                        suppressed.Count;
+                        noPartNumber.Count + suppressed.Count;
                     int totalWarnings =
-                        noMaterial.Count +
-                        hidden.Count +
-                        dupCount;
+                        noMaterial.Count + hidden.Count + dupCount;
 
                     sb.AppendLine();
                     sb.AppendLine(new string('═', 40));
                     sb.AppendLine("Summary:");
-                    sb.AppendLine(
-                        "  ❌ Issues:   " + totalIssues);
-                    sb.AppendLine(
-                        "  ⚠️ Warnings: " + totalWarnings);
+                    sb.AppendLine("  ❌ Issues:   " + totalIssues);
+                    sb.AppendLine("  ⚠️ Warnings: " + totalWarnings);
 
-                    if (totalIssues == 0 &&
-                        totalWarnings == 0)
-                        sb.AppendLine(
-                            "  ✅ Assembly is healthy.");
+                    if (totalIssues == 0 && totalWarnings == 0)
+                        sb.AppendLine("  ✅ Assembly is healthy.");
                     else if (totalIssues == 0)
                         sb.AppendLine(
-                            "  ⚠️ Review warnings " +
-                            "before release.");
+                            "  ⚠️ Review warnings before release.");
                     else
                         sb.AppendLine(
-                            "  ❌ Fix issues before " +
-                            "release.");
+                            "  ❌ Fix issues before release.");
                 }
                 else if (doc.DocumentType ==
                     DocumentTypeEnum.kPartDocumentObject)
                 {
-                    // Run parameter validation instead
                     var validator =
-                        new ParameterValidator(
-                            _inventorApplication);
+                        new ParameterValidator(_inventorApplication);
                     return validator.ValidateParameters();
                 }
                 else
@@ -211,10 +175,11 @@ namespace Inventor2023AIAssistant
             }
             catch (Exception ex)
             {
-                return "Failed to run health check: " +
-                       ex.Message;
+                return "Failed to run health check: " + ex.Message;
             }
         }
+
+        // ─── Scan occurrences ─────────────────────────────────────────
 
         private void ScanOccurrences(
             ComponentOccurrences occurrences,
@@ -237,12 +202,10 @@ namespace Inventor2023AIAssistant
                         hidden.Add(name);
 
                     Document refDoc =
-                        occ.Definition.Document
-                        as Document;
+                        occ.Definition.Document as Document;
 
                     if (refDoc == null) continue;
 
-                    // Part number
                     string pn = "";
                     try
                     {
@@ -259,12 +222,10 @@ namespace Inventor2023AIAssistant
                     else
                     {
                         if (!partNumbers.ContainsKey(pn))
-                            partNumbers[pn] =
-                                new List<string>();
+                            partNumbers[pn] = new List<string>();
                         partNumbers[pn].Add(name);
                     }
 
-                    // Material
                     if (refDoc.DocumentType ==
                         DocumentTypeEnum.kPartDocumentObject)
                     {
@@ -275,8 +236,7 @@ namespace Inventor2023AIAssistant
                                     .ComponentDefinition
                                     .Material.Name;
 
-                            if (string.IsNullOrWhiteSpace(
-                                    mat) ||
+                            if (string.IsNullOrWhiteSpace(mat) ||
                                 mat.ToLower() == "generic" ||
                                 mat.ToLower() == "default")
                                 noMaterial.Add(name);
@@ -287,15 +247,12 @@ namespace Inventor2023AIAssistant
                         }
                     }
 
-                    // Recurse sub-assemblies
                     if (refDoc.DocumentType ==
-                        DocumentTypeEnum
-                            .kAssemblyDocumentObject)
+                        DocumentTypeEnum.kAssemblyDocumentObject)
                     {
                         ScanOccurrences(
                             ((AssemblyDocument)refDoc)
-                                .ComponentDefinition
-                                .Occurrences,
+                                .ComponentDefinition.Occurrences,
                             suppressed, hidden,
                             noPartNumber, noMaterial,
                             partNumbers);
@@ -305,24 +262,22 @@ namespace Inventor2023AIAssistant
             }
         }
 
+        // ─── Individual checks ────────────────────────────────────────
+
         private string FindSuppressedComponents()
         {
             try
             {
-                Document doc =
-                    _inventorApplication.ActiveDocument;
+                Document doc = _inventorApplication.ActiveDocument;
 
                 if (doc == null ||
                     doc.DocumentType !=
                     DocumentTypeEnum.kAssemblyDocumentObject)
                     return "Requires an Assembly document.";
 
-                AssemblyDocument asm =
-                    (AssemblyDocument)doc;
-
+                AssemblyDocument asm = (AssemblyDocument)doc;
                 var sb = new StringBuilder();
-                sb.AppendLine(
-                    "── Suppressed Components ──");
+                sb.AppendLine("── Suppressed Components ──");
 
                 int count = 0;
                 foreach (ComponentOccurrence occ in
@@ -332,8 +287,7 @@ namespace Inventor2023AIAssistant
                     {
                         if (occ.Suppressed)
                         {
-                            sb.AppendLine(
-                                "⚠️ " + occ.Name);
+                            sb.AppendLine("⚠️ " + occ.Name);
                             count++;
                         }
                     }
@@ -341,8 +295,7 @@ namespace Inventor2023AIAssistant
                 }
 
                 if (count == 0)
-                    sb.AppendLine(
-                        "✅ No suppressed components.");
+                    sb.AppendLine("✅ No suppressed components.");
                 else
                     sb.AppendLine(
                         System.Environment.NewLine +
@@ -352,8 +305,7 @@ namespace Inventor2023AIAssistant
             }
             catch (Exception ex)
             {
-                return "Failed to find suppressed: " +
-                       ex.Message;
+                return "Failed to find suppressed: " + ex.Message;
             }
         }
 
@@ -361,17 +313,14 @@ namespace Inventor2023AIAssistant
         {
             try
             {
-                Document doc =
-                    _inventorApplication.ActiveDocument;
+                Document doc = _inventorApplication.ActiveDocument;
 
                 if (doc == null ||
                     doc.DocumentType !=
                     DocumentTypeEnum.kAssemblyDocumentObject)
                     return "Requires an Assembly document.";
 
-                AssemblyDocument asm =
-                    (AssemblyDocument)doc;
-
+                AssemblyDocument asm = (AssemblyDocument)doc;
                 var sb = new StringBuilder();
                 sb.AppendLine("── Hidden Components ──");
 
@@ -383,8 +332,7 @@ namespace Inventor2023AIAssistant
                     {
                         if (!occ.Visible)
                         {
-                            sb.AppendLine(
-                                "ℹ️ " + occ.Name);
+                            sb.AppendLine("ℹ️ " + occ.Name);
                             count++;
                         }
                     }
@@ -392,8 +340,7 @@ namespace Inventor2023AIAssistant
                 }
 
                 if (count == 0)
-                    sb.AppendLine(
-                        "✅ No hidden components.");
+                    sb.AppendLine("✅ No hidden components.");
                 else
                     sb.AppendLine(
                         System.Environment.NewLine +
@@ -411,17 +358,14 @@ namespace Inventor2023AIAssistant
         {
             try
             {
-                Document doc =
-                    _inventorApplication.ActiveDocument;
+                Document doc = _inventorApplication.ActiveDocument;
 
                 if (doc == null ||
                     doc.DocumentType !=
                     DocumentTypeEnum.kAssemblyDocumentObject)
                     return "Requires an Assembly document.";
 
-                AssemblyDocument asm =
-                    (AssemblyDocument)doc;
-
+                AssemblyDocument asm = (AssemblyDocument)doc;
                 var sb = new StringBuilder();
                 sb.AppendLine("── Missing Part Numbers ──");
 
@@ -432,8 +376,7 @@ namespace Inventor2023AIAssistant
                     try
                     {
                         Document refDoc =
-                            occ.Definition.Document
-                            as Document;
+                            occ.Definition.Document as Document;
 
                         if (refDoc == null) continue;
 
@@ -445,35 +388,29 @@ namespace Inventor2023AIAssistant
 
                         if (string.IsNullOrWhiteSpace(pn))
                         {
-                            sb.AppendLine(
-                                "❌ " + occ.Name);
+                            sb.AppendLine("❌ " + occ.Name);
                             count++;
                         }
                     }
                     catch
                     {
                         sb.AppendLine(
-                            "❌ " + occ.Name +
-                            " (could not read)");
+                            "❌ " + occ.Name + " (could not read)");
                         count++;
                     }
                 }
 
                 if (count == 0)
-                    sb.AppendLine(
-                        "✅ All components have " +
-                        "part numbers.");
+                    sb.AppendLine("✅ All components have part numbers.");
                 else
                     sb.AppendLine(
-                        System.Environment.NewLine +
-                        "Missing: " + count);
+                        System.Environment.NewLine + "Missing: " + count);
 
                 return sb.ToString();
             }
             catch (Exception ex)
             {
-                return "Failed to check part numbers: " +
-                       ex.Message;
+                return "Failed to check part numbers: " + ex.Message;
             }
         }
 
@@ -481,17 +418,14 @@ namespace Inventor2023AIAssistant
         {
             try
             {
-                Document doc =
-                    _inventorApplication.ActiveDocument;
+                Document doc = _inventorApplication.ActiveDocument;
 
                 if (doc == null ||
                     doc.DocumentType !=
                     DocumentTypeEnum.kAssemblyDocumentObject)
                     return "Requires an Assembly document.";
 
-                AssemblyDocument asm =
-                    (AssemblyDocument)doc;
-
+                AssemblyDocument asm = (AssemblyDocument)doc;
                 var sb = new StringBuilder();
                 sb.AppendLine("── Missing Materials ──");
 
@@ -502,13 +436,11 @@ namespace Inventor2023AIAssistant
                     try
                     {
                         Document refDoc =
-                            occ.Definition.Document
-                            as Document;
+                            occ.Definition.Document as Document;
 
                         if (refDoc == null ||
                             refDoc.DocumentType !=
-                            DocumentTypeEnum
-                                .kPartDocumentObject)
+                            DocumentTypeEnum.kPartDocumentObject)
                             continue;
 
                         string mat =
@@ -521,8 +453,7 @@ namespace Inventor2023AIAssistant
                             mat.ToLower() == "default")
                         {
                             sb.AppendLine(
-                                "⚠️ " + occ.Name +
-                                " — " + mat);
+                                "⚠️ " + occ.Name + " — " + mat);
                             count++;
                         }
                     }
@@ -530,8 +461,7 @@ namespace Inventor2023AIAssistant
                 }
 
                 if (count == 0)
-                    sb.AppendLine(
-                        "✅ All parts have materials set.");
+                    sb.AppendLine("✅ All parts have materials set.");
                 else
                     sb.AppendLine(
                         System.Environment.NewLine +
@@ -541,8 +471,7 @@ namespace Inventor2023AIAssistant
             }
             catch (Exception ex)
             {
-                return "Failed to check materials: " +
-                       ex.Message;
+                return "Failed to check materials: " + ex.Message;
             }
         }
 
@@ -550,16 +479,14 @@ namespace Inventor2023AIAssistant
         {
             try
             {
-                Document doc =
-                    _inventorApplication.ActiveDocument;
+                Document doc = _inventorApplication.ActiveDocument;
 
                 if (doc == null ||
                     doc.DocumentType !=
                     DocumentTypeEnum.kAssemblyDocumentObject)
                     return "Requires an Assembly document.";
 
-                AssemblyDocument asm =
-                    (AssemblyDocument)doc;
+                AssemblyDocument asm = (AssemblyDocument)doc;
 
                 var partNumbers =
                     new Dictionary<string, List<string>>(
@@ -571,8 +498,7 @@ namespace Inventor2023AIAssistant
                     try
                     {
                         Document refDoc =
-                            occ.Definition.Document
-                            as Document;
+                            occ.Definition.Document as Document;
 
                         if (refDoc == null) continue;
 
@@ -586,8 +512,7 @@ namespace Inventor2023AIAssistant
                             continue;
 
                         if (!partNumbers.ContainsKey(pn))
-                            partNumbers[pn] =
-                                new List<string>();
+                            partNumbers[pn] = new List<string>();
 
                         partNumbers[pn].Add(occ.Name);
                     }
@@ -595,8 +520,7 @@ namespace Inventor2023AIAssistant
                 }
 
                 var sb = new StringBuilder();
-                sb.AppendLine(
-                    "── Duplicate Part Numbers ──");
+                sb.AppendLine("── Duplicate Part Numbers ──");
 
                 int dupCount = 0;
                 foreach (var kvp in partNumbers)
@@ -605,8 +529,7 @@ namespace Inventor2023AIAssistant
                     {
                         sb.AppendLine(
                             "⚠️ " + kvp.Key +
-                            " (" + kvp.Value.Count +
-                            " occurrences):");
+                            " (" + kvp.Value.Count + " occurrences):");
                         foreach (string n in kvp.Value)
                             sb.AppendLine("    - " + n);
                         dupCount++;
@@ -614,31 +537,36 @@ namespace Inventor2023AIAssistant
                 }
 
                 if (dupCount == 0)
-                    sb.AppendLine(
-                        "✅ No duplicate part numbers.");
+                    sb.AppendLine("✅ No duplicate part numbers.");
                 else
                     sb.AppendLine(
                         System.Environment.NewLine +
-                        "Duplicate part numbers: " +
-                        dupCount);
+                        "Duplicate part numbers: " + dupCount);
 
                 return sb.ToString();
             }
             catch (Exception ex)
             {
-                return "Failed to check duplicates: " +
-                       ex.Message;
+                return "Failed to check duplicates: " + ex.Message;
             }
         }
+
+        // ─── List open documents ──────────────────────────────────────
 
         private string ListOpenDocuments()
         {
             try
             {
-                var sb = new StringBuilder();
-                sb.AppendLine("── Open Documents ──");
+                if (_inventorApplication.Documents.Count == 0)
+                    return "No documents are currently open.";
 
-                int count = 0;
+                var sb = new StringBuilder();
+                sb.AppendLine(
+                    "Open documents (" +
+                    _inventorApplication.Documents.Count + "):");
+                sb.AppendLine(new string('-', 40));
+
+                int i = 1;
                 foreach (Document doc in
                     _inventorApplication.Documents)
                 {
@@ -647,45 +575,27 @@ namespace Inventor2023AIAssistant
                         string type = "";
                         switch (doc.DocumentType)
                         {
-                            case DocumentTypeEnum
-                                .kPartDocumentObject:
-                                type = "Part";
-                                break;
-                            case DocumentTypeEnum
-                                .kAssemblyDocumentObject:
-                                type = "Assembly";
-                                break;
-                            case DocumentTypeEnum
-                                .kDrawingDocumentObject:
-                                type = "Drawing";
-                                break;
+                            case DocumentTypeEnum.kPartDocumentObject:
+                                type = "Part"; break;
+                            case DocumentTypeEnum.kAssemblyDocumentObject:
+                                type = "Assembly"; break;
+                            case DocumentTypeEnum.kDrawingDocumentObject:
+                                type = "Drawing"; break;
                             default:
-                                type = "Other";
-                                break;
+                                type = "Document"; break;
                         }
-
                         sb.AppendLine(
-                            (count + 1) + ". [" +
-                            type + "] " +
+                            i++ + ". [" + type + "] " +
                             doc.DisplayName);
-                        count++;
                     }
                     catch { }
                 }
-
-                if (count == 0)
-                    sb.AppendLine(
-                        "No documents are open.");
-
-                sb.AppendLine();
-                sb.AppendLine("Total: " + count);
 
                 return sb.ToString();
             }
             catch (Exception ex)
             {
-                return "Failed to list documents: " +
-                       ex.Message;
+                return "Failed to list documents: " + ex.Message;
             }
         }
     }

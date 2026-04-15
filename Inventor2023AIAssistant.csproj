@@ -52,8 +52,15 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="AssemblyStructureAnalyzer.cs" />
-    <Compile Include="IPropertiesEditor.cs" />
+    <Compile Include="Analysis\AssemblyStructureAnalyzer.cs" />
+    <Compile Include="iProperties\IPropertiesEditor.cs" />
+    <Compile Include="Automation\FileManager.cs" />
+    <Compile Include="Automation\ParameterExporter.cs" />
+    <Compile Include="Analysis\QuickMeasure.cs" />
+    <Compile Include="iProperties\IPropertiesDockableWindow.cs" />
+    <Compile Include="iProperties\IpropertiesPanel.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
     <Compile Include="UI\ComponentVisibilityHandler.cs" />
     <Compile Include="ETC\ActionExecutor.cs" />
     <Compile Include="AI\AiChatClient.cs" />
@@ -79,7 +86,7 @@
     <Compile Include="HVAC\ILogicGenerator.cs" />
     <Compile Include="ETC\InterferenceDetector.cs" />
     <Compile Include="ETC\ParameterValidator.cs" />
-    <Compile Include="Data\PartNumberManger.cs" />
+    <Compile Include="ETC\PartNumberManger.cs" />
     <Compile Include="UI\PictureConverter.cs">
       <SubType>Component</SubType>
     </Compile>
@@ -95,10 +102,10 @@
     <Compile Include="ETC\SelectionEngine.cs" />
     <Compile Include="HVAC\SheetMetalHandler.cs" />
     <Compile Include="Analysis\SketchAnalyzer.cs" />
-    <Compile Include="Core\StandardAddInServer.cs" />
+    <Compile Include="ETC\StandardAddInServer.cs" />
     <Compile Include="Automation\VaultSearchHandler.cs" />
     <Compile Include="ETC\WriteActionsHandler.cs" />
-    <Compile Include="ViewCommandHandler.cs" />
+    <Compile Include="Automation\ViewCommandHandler.cs" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="ETC\AssistantForm.resx">
