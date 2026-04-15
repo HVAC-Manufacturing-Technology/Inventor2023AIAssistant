@@ -40,6 +40,7 @@
       <EmbedInteropTypes>True</EmbedInteropTypes>
     </Reference>
     <Reference Include="System" />
+    <Reference Include="System.Configuration.Install" />
     <Reference Include="System.Core" />
     <Reference Include="System.Drawing" />
     <Reference Include="System.Web.Extensions" />
@@ -53,6 +54,9 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Analysis\AssemblyStructureAnalyzer.cs" />
+    <Compile Include="InstallerAction.cs">
+      <SubType>Component</SubType>
+    </Compile>
     <Compile Include="iProperties\IPropertiesEditor.cs" />
     <Compile Include="Automation\FileManager.cs" />
     <Compile Include="Automation\ParameterExporter.cs" />
