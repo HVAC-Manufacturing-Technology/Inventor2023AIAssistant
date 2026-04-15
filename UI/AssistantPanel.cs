@@ -15,7 +15,7 @@ namespace Inventor2023AIAssistant
         private bool _aiAvailable = false;
         private bool _isStreaming = false;
         private System.Windows.Forms.Timer _statusCheckTimer;
-
+        private EngraveHandler _engraveHandler;
         private WriteActionsHandler _writeActions;
         private ActionExecutor _actionExecutor;
         private ILogicGenerator _iLogicGenerator;
@@ -157,6 +157,9 @@ namespace Inventor2023AIAssistant
             _quickMeasure =
                 new QuickMeasure(
                     _inventorApplication);
+            _engraveHandler =
+    new EngraveHandler(
+        _inventorApplication);
 
             BuildUI();
             InitializeConversation();
@@ -416,6 +419,8 @@ namespace Inventor2023AIAssistant
                 "next part number SAV",
                 "geometry report",
                 "validate parameters", "help",
+                "engrave part name",
+                "engrave part number on face"
             };
 
             foreach (string p in items)
@@ -1300,7 +1305,11 @@ namespace Inventor2023AIAssistant
                         .TryHandleQuickMeasure(prompt);
                 if (response != null)
                 { Output(response); _chatHistory.LogAssistantMessage(response); return; }
-
+                response =
+    _engraveHandler
+        .TryHandleEngrave(prompt);
+                if (response != null)
+                { Output(response); _chatHistory.LogAssistantMessage(response); return; }
                 response =
                     _selectionEngine
                         .TryHandleSelection(prompt);

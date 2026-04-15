@@ -54,6 +54,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Analysis\AssemblyStructureAnalyzer.cs" />
+    <Compile Include="HVAC\EngraveHandler.cs" />
     <Compile Include="InstallerAction.cs">
       <SubType>Component</SubType>
     </Compile>
