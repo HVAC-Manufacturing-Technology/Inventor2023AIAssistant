@@ -1,0 +1,132 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{9031BCE0-8AD8-4188-99E9-DCFEC8591064}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>Inventor2023AIAssistant</RootNamespace>
+    <AssemblyName>Inventor2023AIAssistant</AssemblyName>
+    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <Deterministic>true</Deterministic>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="Autodesk.Inventor.Interop, Version=27.5.0.0, Culture=neutral, PublicKeyToken=d84147f8b4276564, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <EmbedInteropTypes>True</EmbedInteropTypes>
+      <HintPath>..\..\..\..\..\Windows\Microsoft.NET\assembly\GAC_MSIL\Autodesk.Inventor.Interop\v4.0_27.5.0.0__d84147f8b4276564\Autodesk.Inventor.Interop.dll</HintPath>
+    </Reference>
+    <Reference Include="stdole, Version=7.0.3300.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
+      <EmbedInteropTypes>True</EmbedInteropTypes>
+    </Reference>
+    <Reference Include="System" />
+    <Reference Include="System.Configuration.Install" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Web.Extensions" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Analysis\AssemblyStructureAnalyzer.cs" />
+    <Compile Include="HVAC\EngraveHandler.cs" />
+    <Compile Include="ETC\InstallerAction.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="iProperties\IPropertiesEditor.cs" />
+    <Compile Include="Automation\FileManager.cs" />
+    <Compile Include="Automation\ParameterExporter.cs" />
+    <Compile Include="Analysis\QuickMeasure.cs" />
+    <Compile Include="iProperties\IPropertiesDockableWindow.cs" />
+    <Compile Include="iProperties\IpropertiesPanel.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="UI\ComponentVisibilityHandler.cs" />
+    <Compile Include="ETC\ActionExecutor.cs" />
+    <Compile Include="AI\AiChatClient.cs" />
+    <Compile Include="Analysis\AssemblyHealthCheck.cs" />
+    <Compile Include="ETC\AssistantDockableWindow.cs" />
+    <Compile Include="ETC\AssistantForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="ETC\AssistantForm.Designer.cs">
+      <DependentUpon>AssistantForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="UI\AssistantPanel.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="ETC\BomExporter.cs" />
+    <Compile Include="AI\ChatHistoryManager.cs" />
+    <Compile Include="Analysis\ConstraintAnalyzer.cs" />
+    <Compile Include="ETC\DrawingAutomation.cs" />
+    <Compile Include="ETC\FeatureErrorDectector.cs" />
+    <Compile Include="Analysis\GeometryAnalysis.cs" />
+    <Compile Include="HVAC\HolePatternCalculator.cs" />
+    <Compile Include="HVAC\HoleThreadReader.cs" />
+    <Compile Include="HVAC\ILogicGenerator.cs" />
+    <Compile Include="ETC\InterferenceDetector.cs" />
+    <Compile Include="ETC\ParameterValidator.cs" />
+    <Compile Include="ETC\PartNumberManger.cs" />
+    <Compile Include="UI\PictureConverter.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="AI\PromptTextBox.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Properties\Resources.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>Resources.resx</DependentUpon>
+    </Compile>
+    <Compile Include="ETC\SelectionEngine.cs" />
+    <Compile Include="HVAC\SheetMetalHandler.cs" />
+    <Compile Include="Analysis\SketchAnalyzer.cs" />
+    <Compile Include="ETC\StandardAddInServer.cs" />
+    <Compile Include="Automation\VaultSearchHandler.cs" />
+    <Compile Include="ETC\WriteActionsHandler.cs" />
+    <Compile Include="Automation\ViewCommandHandler.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="ETC\AssistantForm.resx">
+      <DependentUpon>AssistantForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Properties\Resources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\AI16.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\AI32.png" />
+  </ItemGroup>
+  <ItemGroup />
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+</Project>
