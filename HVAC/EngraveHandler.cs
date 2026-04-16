@@ -18,6 +18,35 @@ namespace Inventor2023AIAssistant
             string n =
                 prompt.Trim().ToLowerInvariant();
 
+            // ── Debug command ─────────────────────────
+            if (n == "emboss debug")
+            {
+                try
+                {
+                    PartDocument part =
+                        (PartDocument)_app
+                            .ActiveDocument;
+                    EmbossFeatures ef =
+                        part.ComponentDefinition
+                            .Features.EmbossFeatures;
+                    Type t = ef.GetType();
+                    var methods = t.GetMethods();
+                    string result =
+                        "EmbossFeatures methods:" +
+                        System.Environment.NewLine;
+                    foreach (var m in methods)
+                        result += "- " + m.Name +
+                            System.Environment
+                                .NewLine;
+                    return result;
+                }
+                catch (Exception ex)
+                {
+                    return "Debug error: " +
+                        ex.Message;
+                }
+            }
+
             if (!n.Contains("engrave"))
                 return null;
 
@@ -84,12 +113,10 @@ namespace Inventor2023AIAssistant
                 double textHeight =
                     shortSide * 0.15;
 
-                // Clamp between 0.125 and 0.500 inches
                 textHeight =
                     Math.Max(0.125,
                         Math.Min(0.500, textHeight));
 
-                // Convert inches to cm for Inventor
                 double textHeightCm =
                     textHeight * 2.54;
 
@@ -121,12 +148,11 @@ namespace Inventor2023AIAssistant
                 // ── Calculate engrave depth ───────────
                 double engraveDepth =
                     thickness * 0.25;
-
+                
                 engraveDepth =
                     Math.Max(0.008,
                         Math.Min(0.030, engraveDepth));
 
-                // Convert to cm for Inventor
                 double engraveDepthCm =
                     engraveDepth * 2.54;
 
@@ -135,7 +161,6 @@ namespace Inventor2023AIAssistant
                     part.ComponentDefinition
                         .Sketches.Add(selectedFace);
 
-                // ── Create center point ───────────────
                 TransientGeometry tg =
                     _app.TransientGeometry;
 
@@ -148,7 +173,6 @@ namespace Inventor2023AIAssistant
                         centerPt,
                         engraveName);
 
-                // Set font size using FormattedText
                 textBox.FormattedText =
                     "<StyleOverride FontSize='" +
                     textHeightCm.ToString("F4") +
@@ -156,7 +180,7 @@ namespace Inventor2023AIAssistant
                     engraveName +
                     "</StyleOverride>";
 
-                // ── Build profile from text ───────────
+                // ── Build profiles ────────────────────
                 ObjectCollection profiles =
                     _app.TransientObjects
                         .CreateObjectCollection();
@@ -170,7 +194,7 @@ namespace Inventor2023AIAssistant
                         "Could not create text " +
                         "profiles. Try a flatter face.";
 
-                // ── Create emboss via reflection ──────
+                // ── Get EmbossFeatures methods ────────
                 EmbossFeatures embossFeatures =
                     part.ComponentDefinition
                         .Features.EmbossFeatures;
@@ -178,7 +202,16 @@ namespace Inventor2023AIAssistant
                 Type embossType =
                     embossFeatures.GetType();
 
-                object result =
+                // Log all available methods
+                string methodLog =
+                    "Available methods: ";
+                foreach (var m in
+                    embossType.GetMethods())
+                    methodLog += m.Name + ", ";
+
+                // ── Try Add with 5 parameters ─────────
+                try
+                {
                     embossType.InvokeMember(
                         "Add",
                         System.Reflection
@@ -196,28 +229,38 @@ namespace Inventor2023AIAssistant
                             false
                         });
 
-                return
-                    "\u2705 Engraved '" +
-                    engraveName +
-                    "' on selected face." +
-                    System.Environment.NewLine +
-                    "Text height: " +
-                    Math.Round(textHeight, 3) +
-                    " in" +
-                    System.Environment.NewLine +
-                    "Engrave depth: " +
-                    Math.Round(engraveDepth, 3) +
-                    " in";
+                    return
+                        "\u2705 Engraved '" +
+                        engraveName +
+                        "' on selected face." +
+                        System.Environment.NewLine +
+                        "Text height: " +
+                        Math.Round(textHeight, 3) +
+                        " in" +
+                        System.Environment.NewLine +
+                        "Engrave depth: " +
+                        Math.Round(engraveDepth, 3) +
+                        " in";
+                }
+                catch (Exception embossEx)
+                {
+                    // Return method list so we can
+                    // see what is available
+                    return
+                        "\u26a0 Sketch created but " +
+                        "emboss failed." +
+                        System.Environment.NewLine +
+                        "Error: " +
+                        embossEx.Message +
+                        System.Environment.NewLine +
+                        methodLog;
+                }
             }
             catch (Exception ex)
             {
                 return
                     "Engrave failed: " +
-                    ex.Message +
-                    System.Environment.NewLine +
-                    "Make sure you have selected " +
-                    "a flat face before running " +
-                    "the engrave command.";
+                    ex.Message;
             }
         }
     }

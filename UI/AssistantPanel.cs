@@ -1023,7 +1023,7 @@ namespace Inventor2023AIAssistant
             SetStatus(false);
             _statusCheckTimer =
                 new System.Windows.Forms.Timer();
-            _statusCheckTimer.Interval = 5000;
+            _statusCheckTimer.Interval = 300000;
             _statusCheckTimer.Tick +=
                 async (s, e) =>
                     await CheckAiStatusAsync();
