@@ -158,7 +158,7 @@ namespace Inventor2023AIAssistant
                 new QuickMeasure(
                     _inventorApplication);
             _engraveHandler =
-    new EngraveHandler(
+                new EngraveHandler(
         _inventorApplication);
 
             BuildUI();
@@ -272,6 +272,135 @@ namespace Inventor2023AIAssistant
             _tabChat.Controls.Add(_txtOutput);
             _tabChat.Controls.Add(_txtPrompt);
             _tabChat.Controls.Add(_btnSend);
+
+            // Vault Buttons Panel
+            var _vaultPanel = new Panel();
+            _vaultPanel.Height = 32;
+            _vaultPanel.Dock = DockStyle.None;
+            _vaultPanel.BackColor =
+                System.Drawing.Color.FromArgb(37, 37, 38);
+
+            var _btnCheckOut = new Button();
+            _btnCheckOut.Text = "🔓 Check Out";
+            _btnCheckOut.Size =
+                new System.Drawing.Size(95, 26);
+            _btnCheckOut.BackColor =
+                System.Drawing.Color.FromArgb(0, 122, 204);
+            _btnCheckOut.ForeColor =
+                System.Drawing.Color.White;
+            _btnCheckOut.FlatStyle = FlatStyle.Flat;
+            _btnCheckOut.TabStop = false;
+            _btnCheckOut.Click += (s, e) =>
+            {
+                if (_inventorApplication?.ActiveDocument == null)
+                {
+                    AppendOutput("⚠️ No active document.");
+                    return;
+                }
+                string filePath =
+                    _inventorApplication.ActiveDocument
+                    .FullFileName;
+                var vault = new VaultHandler("admin", "password");
+                AppendOutput(vault.CheckOut(filePath)
+                    ? $"✅ Checked out: {System.IO.Path.GetFileName(filePath)}"
+                    : "❌ Check out failed.");
+            };
+
+            var _btnCheckIn = new Button();
+            _btnCheckIn.Text = "🔒 Check In";
+            _btnCheckIn.Size =
+                new System.Drawing.Size(90, 26);
+            _btnCheckIn.BackColor =
+                System.Drawing.Color.FromArgb(16, 124, 16);
+            _btnCheckIn.ForeColor =
+                System.Drawing.Color.White;
+            _btnCheckIn.FlatStyle = FlatStyle.Flat;
+            _btnCheckIn.TabStop = false;
+            _btnCheckIn.Click += (s, e) =>
+            {
+                if (_inventorApplication?.ActiveDocument == null)
+                {
+                    AppendOutput("⚠️ No active document.");
+                    return;
+                }
+                string filePath =
+                    _inventorApplication.ActiveDocument
+                    .FullFileName;
+                string comment =
+                    Microsoft.VisualBasic.Interaction.InputBox(
+                        "Enter check in comment:",
+                        "Vault Check In", "");
+                var vault = new VaultHandler("admin", "password");
+                AppendOutput(vault.CheckIn(filePath, comment)
+                    ? $"✅ Checked in: {System.IO.Path.GetFileName(filePath)}"
+                    : "❌ Check in failed.");
+            };
+
+            var _btnVaultStatus = new Button();
+            _btnVaultStatus.Text = "📋 Status";
+            _btnVaultStatus.Size =
+                new System.Drawing.Size(75, 26);
+            _btnVaultStatus.BackColor =
+                System.Drawing.Color.FromArgb(63, 63, 70);
+            _btnVaultStatus.ForeColor =
+                System.Drawing.Color.White;
+            _btnVaultStatus.FlatStyle = FlatStyle.Flat;
+            _btnVaultStatus.TabStop = false;
+            _btnVaultStatus.Click += (s, e) =>
+            {
+                if (_inventorApplication?.ActiveDocument == null)
+                {
+                    AppendOutput("⚠️ No active document.");
+                    return;
+                }
+                string filePath =
+                    _inventorApplication.ActiveDocument
+                    .FullFileName;
+                var vault = new VaultHandler("admin", "password");
+                AppendOutput(vault.GetStatus(filePath));
+            };
+
+            var _btnUndoCheckOut = new Button();
+            _btnUndoCheckOut.Text = "↩️ Undo";
+            _btnUndoCheckOut.Size =
+                new System.Drawing.Size(70, 26);
+            _btnUndoCheckOut.BackColor =
+                System.Drawing.Color.FromArgb(204, 51, 51);
+            _btnUndoCheckOut.ForeColor =
+                System.Drawing.Color.White;
+            _btnUndoCheckOut.FlatStyle = FlatStyle.Flat;
+            _btnUndoCheckOut.TabStop = false;
+            _btnUndoCheckOut.Click += (s, e) =>
+            {
+                if (_inventorApplication?.ActiveDocument == null)
+                {
+                    AppendOutput("⚠️ No active document.");
+                    return;
+                }
+                string filePath =
+                    _inventorApplication.ActiveDocument
+                    .FullFileName;
+                var vault = new VaultHandler("admin", "password");
+                AppendOutput(vault.UndoCheckOut(filePath)
+                    ? $"↩️ Undo successful: {System.IO.Path.GetFileName(filePath)}"
+                    : "❌ Undo failed.");
+            };
+
+            _vaultPanel.Controls.Add(_btnCheckOut);
+            _vaultPanel.Controls.Add(_btnCheckIn);
+            _vaultPanel.Controls.Add(_btnVaultStatus);
+            _vaultPanel.Controls.Add(_btnUndoCheckOut);
+
+            _btnCheckOut.Location =
+                new System.Drawing.Point(2, 3);
+            _btnCheckIn.Location =
+                new System.Drawing.Point(100, 3);
+            _btnVaultStatus.Location =
+                new System.Drawing.Point(193, 3);
+            _btnUndoCheckOut.Location =
+                new System.Drawing.Point(271, 3);
+
+            _tabChat.Controls.Add(_vaultPanel);
             _tabChat.Resize +=
                 (s, e) => LayoutChatTab();
         }
