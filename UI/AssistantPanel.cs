@@ -300,7 +300,7 @@ namespace Inventor2023AIAssistant
                 string filePath =
                     _inventorApplication.ActiveDocument
                     .FullFileName;
-                var vault = new VaultHandler("admin", "password");
+                var vault = new VaultHandler();
                 AppendOutput(vault.CheckOut(filePath)
                     ? $"✅ Checked out: {System.IO.Path.GetFileName(filePath)}"
                     : "❌ Check out failed.");
@@ -330,7 +330,7 @@ namespace Inventor2023AIAssistant
                     Microsoft.VisualBasic.Interaction.InputBox(
                         "Enter check in comment:",
                         "Vault Check In", "");
-                var vault = new VaultHandler("admin", "password");
+                var vault = new VaultHandler();
                 AppendOutput(vault.CheckIn(filePath, comment)
                     ? $"✅ Checked in: {System.IO.Path.GetFileName(filePath)}"
                     : "❌ Check in failed.");
@@ -356,7 +356,7 @@ namespace Inventor2023AIAssistant
                 string filePath =
                     _inventorApplication.ActiveDocument
                     .FullFileName;
-                var vault = new VaultHandler("admin", "password");
+                var vault = new VaultHandler();
                 AppendOutput(vault.GetStatus(filePath));
             };
 
@@ -380,7 +380,7 @@ namespace Inventor2023AIAssistant
                 string filePath =
                     _inventorApplication.ActiveDocument
                     .FullFileName;
-                var vault = new VaultHandler("admin", "password");
+                var vault = new VaultHandler();
                 AppendOutput(vault.UndoCheckOut(filePath)
                     ? $"↩️ Undo successful: {System.IO.Path.GetFileName(filePath)}"
                     : "❌ Undo failed.");
