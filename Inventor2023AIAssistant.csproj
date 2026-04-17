@@ -31,6 +31,12 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Autodesk.Connectivity.WebServices">
+      <HintPath>..\..\..\..\..\Program Files\Autodesk\Vault Client 2023\Explorer\Autodesk.Connectivity.WebServices.dll</HintPath>
+    </Reference>
+    <Reference Include="Autodesk.DataManagement.Client.Framework">
+      <HintPath>..\..\..\..\..\Program Files\Autodesk\Vault Client 2023\Explorer\Autodesk.DataManagement.Client.Framework.dll</HintPath>
+    </Reference>
     <Reference Include="Autodesk.Inventor.Interop, Version=27.5.0.0, Culture=neutral, PublicKeyToken=d84147f8b4276564, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <EmbedInteropTypes>True</EmbedInteropTypes>
@@ -54,6 +60,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Analysis\AssemblyStructureAnalyzer.cs" />
+    <Compile Include="Automation\VaultHandler.cs" />
     <Compile Include="HVAC\EngraveHandler.cs" />
     <Compile Include="ETC\InstallerAction.cs">
       <SubType>Component</SubType>
