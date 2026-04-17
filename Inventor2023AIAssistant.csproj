@@ -122,6 +122,9 @@
     <Compile Include="Automation\VaultSearchHandler.cs" />
     <Compile Include="ETC\WriteActionsHandler.cs" />
     <Compile Include="Automation\ViewCommandHandler.cs" />
+    <Compile Include="Automation\VaultButtonStrip.cs">
+      <SubType>Component</SubType>
+    </Compile>
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="ETC\AssistantForm.resx">

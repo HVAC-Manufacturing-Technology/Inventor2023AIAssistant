@@ -273,134 +273,75 @@ namespace Inventor2023AIAssistant
             _tabChat.Controls.Add(_txtPrompt);
             _tabChat.Controls.Add(_btnSend);
 
-            // Vault Buttons Panel
-            var _vaultPanel = new Panel();
-            _vaultPanel.Height = 32;
-            _vaultPanel.Dock = DockStyle.None;
-            _vaultPanel.BackColor =
-                System.Drawing.Color.FromArgb(37, 37, 38);
-
-            var _btnCheckOut = new Button();
-            _btnCheckOut.Text = "🔓 Check Out";
-            _btnCheckOut.Size =
-                new System.Drawing.Size(95, 26);
-            _btnCheckOut.BackColor =
-                System.Drawing.Color.FromArgb(0, 122, 204);
-            _btnCheckOut.ForeColor =
-                System.Drawing.Color.White;
-            _btnCheckOut.FlatStyle = FlatStyle.Flat;
-            _btnCheckOut.TabStop = false;
-            _btnCheckOut.Click += (s, e) =>
+            // Vault Button Strip
+            var vaultStrip = new VaultButtonStrip();
+            vaultStrip.CheckOutClicked += (s, e) =>
             {
-                if (_inventorApplication?.ActiveDocument == null)
+                if (_inventorApplication?.ActiveDocument
+                    == null)
                 {
-                    AppendOutput("⚠️ No active document.");
+                    AppendOutput("⚠️ No active document.\n");
                     return;
                 }
-                string filePath =
-                    _inventorApplication.ActiveDocument
-                    .FullFileName;
-                var vault = new VaultHandler();
-                AppendOutput(vault.CheckOut(filePath)
-                    ? $"✅ Checked out: {System.IO.Path.GetFileName(filePath)}"
-                    : "❌ Check out failed.");
+                string fp = _inventorApplication
+                    .ActiveDocument.FullFileName;
+                var v = new VaultHandler();
+                AppendOutput(v.CheckOut(fp)
+                    ? $"✅ Checked out: " +
+                      $"{System.IO.Path.GetFileName(fp)}\n"
+                    : "❌ Check out failed.\n");
             };
-
-            var _btnCheckIn = new Button();
-            _btnCheckIn.Text = "🔒 Check In";
-            _btnCheckIn.Size =
-                new System.Drawing.Size(90, 26);
-            _btnCheckIn.BackColor =
-                System.Drawing.Color.FromArgb(16, 124, 16);
-            _btnCheckIn.ForeColor =
-                System.Drawing.Color.White;
-            _btnCheckIn.FlatStyle = FlatStyle.Flat;
-            _btnCheckIn.TabStop = false;
-            _btnCheckIn.Click += (s, e) =>
+            vaultStrip.CheckInClicked += (s, e) =>
             {
-                if (_inventorApplication?.ActiveDocument == null)
+                if (_inventorApplication?.ActiveDocument
+                    == null)
                 {
-                    AppendOutput("⚠️ No active document.");
+                    AppendOutput("⚠️ No active document.\n");
                     return;
                 }
-                string filePath =
-                    _inventorApplication.ActiveDocument
-                    .FullFileName;
+                string fp = _inventorApplication
+                    .ActiveDocument.FullFileName;
                 string comment =
-                    Microsoft.VisualBasic.Interaction.InputBox(
+                    Microsoft.VisualBasic.Interaction
+                    .InputBox(
                         "Enter check in comment:",
                         "Vault Check In", "");
-                var vault = new VaultHandler();
-                AppendOutput(vault.CheckIn(filePath, comment)
-                    ? $"✅ Checked in: {System.IO.Path.GetFileName(filePath)}"
-                    : "❌ Check in failed.");
+                var v = new VaultHandler();
+                AppendOutput(v.CheckIn(fp, comment)
+                    ? $"✅ Checked in: " +
+                      $"{System.IO.Path.GetFileName(fp)}\n"
+                    : "❌ Check in failed.\n");
             };
-
-            var _btnVaultStatus = new Button();
-            _btnVaultStatus.Text = "📋 Status";
-            _btnVaultStatus.Size =
-                new System.Drawing.Size(75, 26);
-            _btnVaultStatus.BackColor =
-                System.Drawing.Color.FromArgb(63, 63, 70);
-            _btnVaultStatus.ForeColor =
-                System.Drawing.Color.White;
-            _btnVaultStatus.FlatStyle = FlatStyle.Flat;
-            _btnVaultStatus.TabStop = false;
-            _btnVaultStatus.Click += (s, e) =>
+            vaultStrip.StatusClicked += (s, e) =>
             {
-                if (_inventorApplication?.ActiveDocument == null)
+                if (_inventorApplication?.ActiveDocument
+                    == null)
                 {
-                    AppendOutput("⚠️ No active document.");
+                    AppendOutput("⚠️ No active document.\n");
                     return;
                 }
-                string filePath =
-                    _inventorApplication.ActiveDocument
-                    .FullFileName;
-                var vault = new VaultHandler();
-                AppendOutput(vault.GetStatus(filePath));
+                string fp = _inventorApplication
+                    .ActiveDocument.FullFileName;
+                var v = new VaultHandler();
+                AppendOutput(v.GetStatus(fp) + "\n");
             };
-
-            var _btnUndoCheckOut = new Button();
-            _btnUndoCheckOut.Text = "↩️ Undo";
-            _btnUndoCheckOut.Size =
-                new System.Drawing.Size(70, 26);
-            _btnUndoCheckOut.BackColor =
-                System.Drawing.Color.FromArgb(204, 51, 51);
-            _btnUndoCheckOut.ForeColor =
-                System.Drawing.Color.White;
-            _btnUndoCheckOut.FlatStyle = FlatStyle.Flat;
-            _btnUndoCheckOut.TabStop = false;
-            _btnUndoCheckOut.Click += (s, e) =>
+            vaultStrip.UndoClicked += (s, e) =>
             {
-                if (_inventorApplication?.ActiveDocument == null)
+                if (_inventorApplication?.ActiveDocument
+                    == null)
                 {
-                    AppendOutput("⚠️ No active document.");
+                    AppendOutput("⚠️ No active document.\n");
                     return;
                 }
-                string filePath =
-                    _inventorApplication.ActiveDocument
-                    .FullFileName;
-                var vault = new VaultHandler();
-                AppendOutput(vault.UndoCheckOut(filePath)
-                    ? $"↩️ Undo successful: {System.IO.Path.GetFileName(filePath)}"
-                    : "❌ Undo failed.");
+                string fp = _inventorApplication
+                    .ActiveDocument.FullFileName;
+                var v = new VaultHandler();
+                AppendOutput(v.UndoCheckOut(fp)
+                    ? $"↩️ Undo successful: " +
+                      $"{System.IO.Path.GetFileName(fp)}\n"
+                    : "❌ Undo failed.\n");
             };
-
-            _vaultPanel.Controls.Add(_btnCheckOut);
-            _vaultPanel.Controls.Add(_btnCheckIn);
-            _vaultPanel.Controls.Add(_btnVaultStatus);
-            _vaultPanel.Controls.Add(_btnUndoCheckOut);
-
-            _btnCheckOut.Location =
-                new System.Drawing.Point(2, 3);
-            _btnCheckIn.Location =
-                new System.Drawing.Point(100, 3);
-            _btnVaultStatus.Location =
-                new System.Drawing.Point(193, 3);
-            _btnUndoCheckOut.Location =
-                new System.Drawing.Point(271, 3);
-
-            _tabChat.Controls.Add(_vaultPanel);
+            _tabChat.Controls.Add(vaultStrip);
             _tabChat.Resize +=
                 (s, e) => LayoutChatTab();
         }
@@ -603,17 +544,23 @@ namespace Inventor2023AIAssistant
             int w = _tabChat.ClientSize.Width;
             int h = _tabChat.ClientSize.Height;
             int pad = 6;
-            int ph = 70;
-            int sh = 28;
-            int outH =
-                Math.Max(h - ph - sh - pad * 3, 40);
+            int ph = 70;   // prompt height
+            int sh = 28;   // send button height
+            int vh = 35;   // vault strip height
 
+            // Total bottom area needed
+            int bottomArea = ph + sh + vh + pad * 4;
+            int outH = Math.Max(
+                h - bottomArea, 40);
+
+            // Chat output fills top area
             _txtOutput.Location =
                 new System.Drawing.Point(pad, pad);
             _txtOutput.Size =
                 new System.Drawing.Size(
                     w - pad * 2, outH);
 
+            // Prompt box below output
             int pTop = pad + outH + pad;
             _txtPrompt.Location =
                 new System.Drawing.Point(pad, pTop);
@@ -621,12 +568,17 @@ namespace Inventor2023AIAssistant
                 new System.Drawing.Size(
                     w - pad * 2, ph);
 
+            // Send button below prompt
             int sTop = pTop + ph + pad;
             _btnSend.Location =
                 new System.Drawing.Point(
                     w - 70 - pad, sTop);
             _btnSend.Size =
                 new System.Drawing.Size(70, sh);
+
+            // Vault strip sits at very bottom
+            // via DockStyle.Bottom - no manual
+            // positioning needed
         }
 
         private void LayoutSavedTab()
