@@ -52,7 +52,7 @@ namespace Inventor2023AIAssistant
                         "Sheet Metal Defaults");
 
                 _dockableWindow
-                    .SetMinimumSize(260, 400);
+                    .SetMinimumSize(280, 420);
 
                 _panel =
                     new SheetMetalDefaultsPanel(
@@ -106,23 +106,22 @@ namespace Inventor2023AIAssistant
     {
         private readonly Inventor.Application _app;
 
-        private Label _lblTitle;
+        private Label _lblRule;
+        private ComboBox _cboRule;
+        private Button _btnEditRule;
+        private CheckBox _chkUseThickness;
         private Label _lblThickness;
-        private Label _lblBendRadius;
-        private Label _lblBendRelief;
-        private Label _lblCornerRelief;
-        private Label _lblMaterial;
-        private Label _lblUnfoldRule;
-
         private WinTextBox _txtThickness;
-        private WinTextBox _txtBendRadius;
-        private WinTextBox _txtBendRelief;
-        private WinTextBox _txtCornerRelief;
-        private WinTextBox _txtMaterial;
-        private WinTextBox _txtUnfoldRule;
-
-        private Button _btnRefresh;
+        private Label _lblMaterial;
+        private ComboBox _cboMaterial;
+        private Label _lblUnfoldRule;
+        private ComboBox _cboUnfoldRule;
+        private Button _btnEditUnfold;
+        private Button _btnOK;
+        private Button _btnCancel;
         private Button _btnApply;
+
+        private SheetMetalStyle _activeStyle;
 
         public SheetMetalDefaultsPanel(
             Inventor.Application app)
@@ -137,127 +136,161 @@ namespace Inventor2023AIAssistant
             BackColor = System.Drawing.Color
                 .FromArgb(45, 45, 48);
             ForeColor = System.Drawing.Color.White;
-            Padding = new Padding(8);
+            Padding = new Padding(10);
+            AutoScroll = true;
 
-            _lblTitle = new Label
+            _lblRule = CreateLabel(
+                "Sheet Metal Rule:");
+            _cboRule = new ComboBox
             {
-                Text = "Sheet Metal Defaults",
-                Font = new System.Drawing.Font(
-                    "Segoe UI", 10f,
-                    System.Drawing.FontStyle.Bold),
-                ForeColor =
-                    System.Drawing.Color.White,
-                Dock = DockStyle.Top,
-                Height = 30,
-                TextAlign =
-                    System.Drawing.ContentAlignment
-                    .MiddleLeft
-            };
-
-            _lblThickness =
-                CreateLabel("Thickness:");
-            _txtThickness = CreateTextBox();
-
-            _lblBendRadius =
-                CreateLabel("Bend Radius:");
-            _txtBendRadius = CreateTextBox();
-
-            _lblBendRelief =
-                CreateLabel("Bend Relief:");
-            _txtBendRelief = CreateTextBox();
-            _txtBendRelief.ReadOnly = true;
-
-            _lblCornerRelief =
-                CreateLabel("Corner Relief:");
-            _txtCornerRelief = CreateTextBox();
-            _txtCornerRelief.ReadOnly = true;
-
-            _lblMaterial =
-                CreateLabel("Material:");
-            _txtMaterial = CreateTextBox();
-            _txtMaterial.ReadOnly = true;
-
-            _lblUnfoldRule =
-                CreateLabel("Unfold Rule:");
-            _txtUnfoldRule = CreateTextBox();
-            _txtUnfoldRule.ReadOnly = true;
-
-            _btnRefresh = new Button
-            {
-                Text = "🔄 Refresh",
-                Height = 28,
-                Dock = DockStyle.Bottom,
                 BackColor = System.Drawing.Color
-                    .FromArgb(63, 63, 70),
+                    .FromArgb(37, 37, 38),
                 ForeColor =
                     System.Drawing.Color.White,
                 FlatStyle = FlatStyle.Flat,
-                TabStop = false
+                DropDownStyle =
+                    ComboBoxStyle.DropDownList
             };
-            _btnRefresh.Click += (s, e) =>
+            _cboRule.SelectedIndexChanged +=
+                CboRule_Changed;
+
+            _btnEditRule = CreateIconButton("✏️");
+            _btnEditRule.Click +=
+                (s, e) => EditActiveRule();
+
+            _chkUseThickness = new CheckBox
+            {
+                Text = "Use Thickness from Rule",
+                ForeColor =
+                    System.Drawing.Color.White,
+                AutoSize = true,
+                Checked = true
+            };
+            _chkUseThickness.CheckedChanged +=
+                (s, e) =>
+                {
+                    _txtThickness.ReadOnly =
+                        _chkUseThickness.Checked;
+                    UpdateThicknessDisplay();
+                };
+
+            _lblThickness = CreateLabel(
+                "Thickness:");
+            _txtThickness = new WinTextBox
+            {
+                BackColor = System.Drawing.Color
+                    .FromArgb(37, 37, 38),
+                ForeColor =
+                    System.Drawing.Color.White,
+                BorderStyle =
+                    BorderStyle.FixedSingle,
+                Font = new System.Drawing.Font(
+                    "Segoe UI", 9f),
+                ReadOnly = true
+            };
+
+            _lblMaterial = CreateLabel("Material:");
+            _cboMaterial = new ComboBox
+            {
+                BackColor = System.Drawing.Color
+                    .FromArgb(37, 37, 38),
+                ForeColor =
+                    System.Drawing.Color.White,
+                FlatStyle = FlatStyle.Flat,
+                DropDownStyle =
+                    ComboBoxStyle.DropDownList
+            };
+
+            _lblUnfoldRule = CreateLabel(
+                "Unfold Rule:");
+            _cboUnfoldRule = new ComboBox
+            {
+                BackColor = System.Drawing.Color
+                    .FromArgb(37, 37, 38),
+                ForeColor =
+                    System.Drawing.Color.White,
+                FlatStyle = FlatStyle.Flat,
+                DropDownStyle =
+                    ComboBoxStyle.DropDownList
+            };
+
+            _btnEditUnfold =
+                CreateIconButton("✏️");
+            _btnEditUnfold.Click +=
+                (s, e) => EditUnfoldRule();
+
+            _btnOK = CreateButton("OK",
+                System.Drawing.Color
+                .FromArgb(0, 122, 204));
+            _btnOK.Click += (s, e) =>
+                ApplyValues();
+
+            _btnCancel = CreateButton("Cancel",
+                System.Drawing.Color
+                .FromArgb(63, 63, 70));
+            _btnCancel.Click += (s, e) =>
                 RefreshValues();
 
-            _btnApply = new Button
-            {
-                Text = "✅ Apply",
-                Height = 28,
-                Dock = DockStyle.Bottom,
-                BackColor = System.Drawing.Color
-                    .FromArgb(0, 122, 204),
-                ForeColor =
-                    System.Drawing.Color.White,
-                FlatStyle = FlatStyle.Flat,
-                TabStop = false
-            };
+            _btnApply = CreateButton("Apply",
+                System.Drawing.Color
+                .FromArgb(0, 122, 204));
             _btnApply.Click += (s, e) =>
                 ApplyValues();
 
-            var layout = new TableLayoutPanel
-            {
-                Dock = DockStyle.Fill,
-                ColumnCount = 2,
-                RowCount = 6,
-                BackColor = System.Drawing.Color
-                    .FromArgb(45, 45, 48),
-                Padding = new Padding(4)
-            };
+            // ── Manual Layout ─────────────────────
+            int y = 10;
+            int pad = 10;
+            int rowH = 26;
 
-            layout.ColumnStyles.Add(
-                new ColumnStyle(
-                    SizeType.Percent, 40f));
-            layout.ColumnStyles.Add(
-                new ColumnStyle(
-                    SizeType.Percent, 60f));
+            AddLbl(_lblRule, 10, y);
+            y += 20;
+            AddCtrl(_cboRule, 10, y, 195, rowH);
+            AddCtrl(_btnEditRule, 210, y, 30, rowH);
+            y += rowH + pad;
 
-            layout.Controls.Add(
-                _lblThickness, 0, 0);
-            layout.Controls.Add(
-                _txtThickness, 1, 0);
-            layout.Controls.Add(
-                _lblBendRadius, 0, 1);
-            layout.Controls.Add(
-                _txtBendRadius, 1, 1);
-            layout.Controls.Add(
-                _lblBendRelief, 0, 2);
-            layout.Controls.Add(
-                _txtBendRelief, 1, 2);
-            layout.Controls.Add(
-                _lblCornerRelief, 0, 3);
-            layout.Controls.Add(
-                _txtCornerRelief, 1, 3);
-            layout.Controls.Add(
-                _lblMaterial, 0, 4);
-            layout.Controls.Add(
-                _txtMaterial, 1, 4);
-            layout.Controls.Add(
-                _lblUnfoldRule, 0, 5);
-            layout.Controls.Add(
-                _txtUnfoldRule, 1, 5);
+            AddCtrl(_chkUseThickness,
+                10, y, 230, 22);
+            y += 28;
 
-            Controls.Add(layout);
-            Controls.Add(_btnApply);
-            Controls.Add(_btnRefresh);
-            Controls.Add(_lblTitle);
+            AddLbl(_lblThickness, 10, y);
+            AddCtrl(_txtThickness,
+                150, y - 2, 90, rowH);
+            y += rowH + pad;
+
+            AddLbl(_lblMaterial, 10, y);
+            y += 20;
+            AddCtrl(_cboMaterial,
+                10, y, 220, rowH);
+            y += rowH + pad;
+
+            AddLbl(_lblUnfoldRule, 10, y);
+            y += 20;
+            AddCtrl(_cboUnfoldRule,
+                10, y, 195, rowH);
+            AddCtrl(_btnEditUnfold,
+                210, y, 30, rowH);
+            y += rowH + pad + 10;
+
+            AddCtrl(_btnOK, 10, y, 70, 28);
+            AddCtrl(_btnCancel, 88, y, 70, 28);
+            AddCtrl(_btnApply, 166, y, 70, 28);
+        }
+
+        private void AddLbl(Label l, int x, int y)
+        {
+            l.Location =
+                new System.Drawing.Point(x, y);
+            Controls.Add(l);
+        }
+
+        private void AddCtrl(Control c,
+            int x, int y, int w, int h)
+        {
+            c.Location =
+                new System.Drawing.Point(x, y);
+            c.Size =
+                new System.Drawing.Size(w, h);
+            Controls.Add(c);
         }
 
         private Label CreateLabel(string text)
@@ -269,26 +302,37 @@ namespace Inventor2023AIAssistant
                     .FromArgb(180, 180, 180),
                 Font = new System.Drawing.Font(
                     "Segoe UI", 9f),
-                Dock = DockStyle.Fill,
-                TextAlign =
-                    System.Drawing.ContentAlignment
-                    .MiddleLeft
+                AutoSize = true
             };
         }
 
-        private WinTextBox CreateTextBox()
+        private Button CreateIconButton(
+            string icon)
         {
-            return new WinTextBox
+            return new Button
             {
-                Dock = DockStyle.Fill,
+                Text = icon,
                 BackColor = System.Drawing.Color
-                    .FromArgb(37, 37, 38),
+                    .FromArgb(63, 63, 70),
                 ForeColor =
                     System.Drawing.Color.White,
-                BorderStyle =
-                    BorderStyle.FixedSingle,
-                Font = new System.Drawing.Font(
-                    "Segoe UI", 9f)
+                FlatStyle = FlatStyle.Flat,
+                TabStop = false
+            };
+        }
+
+        private Button CreateButton(
+            string text,
+            System.Drawing.Color color)
+        {
+            return new Button
+            {
+                Text = text,
+                BackColor = color,
+                ForeColor =
+                    System.Drawing.Color.White,
+                FlatStyle = FlatStyle.Flat,
+                TabStop = false
             };
         }
 
@@ -301,104 +345,133 @@ namespace Inventor2023AIAssistant
                     doc.DocumentType !=
                     DocumentTypeEnum
                     .kPartDocumentObject)
-                {
-                    ClearValues();
                     return;
-                }
 
                 PartDocument part =
                     (PartDocument)doc;
 
                 if (!(part.ComponentDefinition
                     is SheetMetalComponentDefinition))
-                {
-                    ClearValues();
                     return;
-                }
 
                 SheetMetalComponentDefinition smDef =
                     (SheetMetalComponentDefinition)
                     part.ComponentDefinition;
 
-                // Thickness
-                try
-                {
-                    double t =
-                        smDef.Thickness.Value
-                        * 0.393701;
-                    _txtThickness.Text =
-                        Math.Round(t, 4) + " in";
-                }
-                catch { _txtThickness.Text = "N/A"; }
+                // Load styles into dropdown
+                _cboRule.Items.Clear();
+                _activeStyle =
+                    smDef.ActiveSheetMetalStyle;
 
-                // Bend Radius
-                try
+                foreach (SheetMetalStyle style in
+                    smDef.SheetMetalStyles)
                 {
-                    double br =
-                        smDef.BendRadius.Value
-                        * 0.393701;
-                    _txtBendRadius.Text =
-                        Math.Round(br, 4) + " in";
-                }
-                catch
-                {
-                    _txtBendRadius.Text = "N/A";
+                    _cboRule.Items.Add(style.Name);
+                    if (style.Name ==
+                        _activeStyle?.Name)
+                        _cboRule.SelectedItem =
+                            style.Name;
                 }
 
-                // Bend Relief
-                try
-                {
-                    double brel =
-                        smDef.BendRadius.Value
-                        * 0.393701;
-                    _txtBendRelief.Text =
-                        Math.Round(brel, 4) + " in";
-                }
-                catch
-                {
-                    _txtBendRelief.Text = "N/A";
-                }
+                // Use thickness checkbox
+                _chkUseThickness.Checked =
+                    smDef.UseSheetMetalStyleThickness;
+                _txtThickness.ReadOnly =
+                    _chkUseThickness.Checked;
 
-                // Corner Relief Size
-                try
-                {
-                    double cr =
-                        smDef.CornerReliefSize.Value
-                        * 0.393701;
-                    _txtCornerRelief.Text =
-                        Math.Round(cr, 4) + " in";
-                }
-                catch
-                {
-                    _txtCornerRelief.Text = "N/A";
-                }
+                // Show thickness string directly
+                UpdateThicknessDisplay();
 
                 // Material
-                try
-                {
-                    _txtMaterial.Text =
-                        part.ComponentDefinition
-                        .Material.Name;
-                }
-                catch { _txtMaterial.Text = "N/A"; }
+                _cboMaterial.Items.Clear();
+                _cboMaterial.Items.Add(
+                    "By Sheet Metal Rule ( " +
+                    (part.ComponentDefinition
+                    .Material?.Name ?? "Steel") +
+                    " )");
+                _cboMaterial.SelectedIndex = 0;
 
                 // Unfold Rule
-                try
-                {
-                    _txtUnfoldRule.Text =
-                        smDef.UnfoldMethod
-                        .ToString();
-                }
-                catch
-                {
-                    _txtUnfoldRule.Text = "N/A";
-                }
+                _cboUnfoldRule.Items.Clear();
+                _cboUnfoldRule.Items.Add(
+                    "By Sheet Metal Rule ( " +
+                    (_activeStyle?.UnfoldMethod
+                    .ToString() ??
+                    "Default_kFactor") + " )");
+                _cboUnfoldRule.SelectedIndex = 0;
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine(
+                System.Diagnostics.Debug
+                    .WriteLine(
                     "RefreshValues: " + ex.Message);
             }
+        }
+
+        private void UpdateThicknessDisplay()
+        {
+            try
+            {
+                if (_activeStyle != null)
+                    _txtThickness.Text =
+                        _activeStyle.Thickness;
+            }
+            catch { }
+        }
+
+        private void CboRule_Changed(
+            object sender, EventArgs e)
+        {
+            try
+            {
+                Document doc = _app.ActiveDocument;
+                if (doc == null) return;
+
+                PartDocument part =
+                    (PartDocument)doc;
+
+                if (!(part.ComponentDefinition
+                    is SheetMetalComponentDefinition))
+                    return;
+
+                SheetMetalComponentDefinition smDef =
+                    (SheetMetalComponentDefinition)
+                    part.ComponentDefinition;
+
+                string selected =
+                    _cboRule.SelectedItem
+                    ?.ToString();
+
+                foreach (SheetMetalStyle style in
+                    smDef.SheetMetalStyles)
+                {
+                    if (style.Name == selected)
+                    {
+                        _activeStyle = style;
+                        UpdateThicknessDisplay();
+                        break;
+                    }
+                }
+            }
+            catch { }
+        }
+
+        private void EditActiveRule()
+        {
+            MessageBox.Show(
+                "To edit Sheet Metal Rules:\n" +
+                "Manage → Styles Editor → " +
+                "Sheet Metal",
+                "Edit Rule");
+        }
+
+        private void EditUnfoldRule()
+        {
+            MessageBox.Show(
+                "To edit Unfold Rules:\n" +
+                "Manage → Styles Editor → " +
+                "Unfold Rule",
+                "Edit Unfold Rule");
         }
 
         private void ApplyValues()
@@ -424,8 +497,7 @@ namespace Inventor2023AIAssistant
                     is SheetMetalComponentDefinition))
                 {
                     MessageBox.Show(
-                        "Active document is not " +
-                        "a Sheet Metal part.");
+                        "Not a Sheet Metal part.");
                     return;
                 }
 
@@ -433,31 +505,25 @@ namespace Inventor2023AIAssistant
                     (SheetMetalComponentDefinition)
                     part.ComponentDefinition;
 
-                // Apply thickness
-                try
+                // Apply selected style
+                if (_activeStyle != null)
                 {
-                    string tStr =
-                        _txtThickness.Text
-                        .Replace(" in", "").Trim();
-                    if (double.TryParse(
-                        tStr, out double t))
-                        smDef.Thickness.Value =
-                            t / 0.393701;
+                    smDef.SetBodySheetMetalStyle(
+                        null, _activeStyle);
                 }
-                catch { }
 
-                // Apply bend radius
-                try
+                // Apply use thickness setting
+                smDef.UseSheetMetalStyleThickness =
+                    _chkUseThickness.Checked;
+
+                // Apply manual thickness if needed
+                if (!_chkUseThickness.Checked &&
+                    !string.IsNullOrEmpty(
+                        _txtThickness.Text))
                 {
-                    string brStr =
-                        _txtBendRadius.Text
-                        .Replace(" in", "").Trim();
-                    if (double.TryParse(
-                        brStr, out double br))
-                        smDef.BendRadius.Value =
-                            br / 0.393701;
+                    _activeStyle.Thickness =
+                        _txtThickness.Text;
                 }
-                catch { }
 
                 MessageBox.Show(
                     "✅ Sheet Metal defaults " +
@@ -472,16 +538,6 @@ namespace Inventor2023AIAssistant
                     "❌ Apply failed:\n" +
                     ex.Message);
             }
-        }
-
-        private void ClearValues()
-        {
-            _txtThickness.Text = "";
-            _txtBendRadius.Text = "";
-            _txtBendRelief.Text = "";
-            _txtCornerRelief.Text = "";
-            _txtMaterial.Text = "";
-            _txtUnfoldRule.Text = "";
         }
     }
 }
