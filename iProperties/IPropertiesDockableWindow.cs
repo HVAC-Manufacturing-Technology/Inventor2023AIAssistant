@@ -54,7 +54,7 @@ namespace Inventor2023AIAssistant
                         "IPropertiesPanel",
                         "iProperties");
 
-                _dockableWindow.SetMinimumSize(260, 300);
+                _dockableWindow.SetMinimumSize(50, 50);
 
                 // Create panel and force handle creation
                 _panel = new IPropertiesPanel(

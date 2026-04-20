@@ -218,7 +218,10 @@ namespace Inventor2023AIAssistant
                 new DataGridViewTextBoxColumn();
             colProp.HeaderText = "Property";
             colProp.Name = "Property";
-            colProp.Width = 150;
+            colProp.AutoSizeMode =
+                DataGridViewAutoSizeColumnMode
+                    .AllCells;
+            colProp.ReadOnly = true;
             colProp.ReadOnly = true;
             colProp.DefaultCellStyle.BackColor =
                 System.Drawing.Color.FromArgb(37, 37, 38);
