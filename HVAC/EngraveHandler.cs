@@ -44,7 +44,7 @@ namespace Inventor2023AIAssistant
                     "• 'through' — Mark Through";
             }
 
-            // ── Step 2 — Execute after face ───────
+            // ── Step 2 — Face selected ────────────
             if (_waitingForFace &&
                 (n == "go" || n == "ok" ||
                  n == "done" || n == "run"))
@@ -120,7 +120,6 @@ namespace Inventor2023AIAssistant
 
         private string ExecuteEngrave()
         {
-            string debugInfo = "";
             try
             {
                 PartDocument part =
@@ -190,18 +189,11 @@ namespace Inventor2023AIAssistant
                         "</StyleOverride>",
                         Missing.Value);
 
-                debugInfo += "Sketch ✅ Text ✅\n";
-
-                // ── Build collection with TextBox ─
+                // ── Build collection ──────────────
                 ObjectCollection profiles =
                     _app.TransientObjects
                     .CreateObjectCollection();
-
-                // Add the TextBox directly
                 profiles.Add(textBox);
-
-                debugInfo +=
-                    $"TextBox added to collection ✅\n";
 
                 // ── Find correct MarkStyle ────────
                 MarkStyle selectedStyle = null;
@@ -212,8 +204,6 @@ namespace Inventor2023AIAssistant
                 foreach (MarkStyle ms in
                     part.MarkStyles)
                 {
-                    debugInfo +=
-                        $"Style: {ms.Name}\n";
                     if (ms.Name.ToLowerInvariant()
                         .Contains(targetStyle) &&
                         selectedStyle == null)
@@ -221,15 +211,11 @@ namespace Inventor2023AIAssistant
                 }
 
                 if (selectedStyle == null)
-                    return debugInfo +
+                    return
                         "❌ No matching Mark " +
                         "Style found.\n" +
                         "Go to Manage → " +
                         "Styles Editor → Mark.";
-
-                debugInfo +=
-                    $"Using: " +
-                    $"{selectedStyle.Name} ✅\n";
 
                 // ── Create empty collection ───────
                 ObjectCollection emptyCol =
@@ -242,80 +228,42 @@ namespace Inventor2023AIAssistant
                     .CreateMarkDefinition(
                         emptyCol, selectedStyle);
 
-                debugInfo +=
-                    "Mark definition ✅\n";
-
                 // ── Add geometry set ──────────────
                 markDef.AddGeometrySet(
                     profiles, selectedStyle);
 
-                debugInfo +=
-                    "Geometry set added ✅\n";
-                // ── Finish sketch first ───────────
+                // ── Finish sketch ─────────────────
                 try
                 {
                     sketch.ExitEdit();
-                    debugInfo += "Sketch finished ✅\n";
                 }
-                catch (Exception exitEx)
-                {
-                    debugInfo +=
-                        $"⚠️ ExitEdit: {exitEx.Message}\n";
-                }
+                catch { }
 
-                // ── Debug MarkDefinition ──────────
+                // ── Add mark feature ──────────────
                 try
                 {
-                    debugInfo +=
-                        $"GeomSetCount: " +
-                        $"{markDef.MarkGeometrySetCount}\n";
+                    smFeatures.MarkFeatures
+                        .Add(markDef);
+
+                    return
+                        $"✅ Marked '{partName}'" +
+                        $" on selected face.\n" +
+                        $"Type: {_markType}\n" +
+                        $"Text height: " +
+                        $"{Math.Round(textHeight, 3)}" +
+                        $" in";
                 }
-                catch (Exception gcEx)
+                catch (Exception addEx)
                 {
-                    debugInfo +=
-                        $"⚠️ GeomSet: {gcEx.Message}\n";
+                    return
+                        $"❌ Mark failed:\n" +
+                        $"{addEx.Message}";
                 }
-
-                // ── Try Add via reflection ────────
-                Type mfType =
-                    smFeatures.MarkFeatures.GetType();
-
-                string methods = "Methods: ";
-                foreach (var m in mfType.GetMethods())
-                    methods += m.Name + " ";
-
-                debugInfo += methods + "\n";
-
-                try
-                {
-                    mfType.InvokeMember(
-                        "Add",
-                        BindingFlags.InvokeMethod,
-                        null,
-                        smFeatures.MarkFeatures,
-                        new object[] { markDef });
-                }
-                catch (Exception refEx)
-                {
-                    return debugInfo +
-                        $"❌ Reflection Add failed:\n" +
-                        $"{refEx.Message}\n" +
-                        $"Inner: " +
-                        $"{refEx.InnerException?.Message}";
-                }
-
-                return
-                    $"✅ Marked '{partName}'" +
-                    $" on selected face.\n" +
-                    $"Type: {_markType}\n" +
-                    $"Text height: " +
-                    $"{Math.Round(textHeight, 3)}" +
-                    $" in";
             }
             catch (Exception ex)
             {
-                return debugInfo +
-                    $"❌ Mark failed:\n" +
+                return
+                    $"❌ Engrave failed:\n" +
                     $"{ex.Message}";
             }
         }

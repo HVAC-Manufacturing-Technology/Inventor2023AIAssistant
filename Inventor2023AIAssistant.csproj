@@ -125,6 +125,7 @@
     <Compile Include="Automation\VaultButtonStrip.cs">
       <SubType>Component</SubType>
     </Compile>
+    <Compile Include="UI\SheetMetalDefaultsDockableWindow.cs" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="ETC\AssistantForm.resx">

@@ -43,6 +43,7 @@ namespace Inventor2023AIAssistant
         private ParameterExporter _paramExporter;
         private QuickMeasure _quickMeasure;
         private IPropertiesDockableWindow _iPropWindow;
+        private SheetMetalDefaultsDockableWindow _smDefaultsWindow;
 
         private List<string> _savedPrompts;
         private List<string> _promptHistory;
@@ -141,6 +142,12 @@ namespace Inventor2023AIAssistant
                     _iPropertiesEditor,
                     "{C3B2E8D3-7E5F-4A88-9E9E-1F4A8A202301}");
             _iPropWindow.Create();
+
+            _smDefaultsWindow =
+    new SheetMetalDefaultsDockableWindow(
+        _inventorApplication,
+        "{D4E52C91-7F3A-4B22-9E8F-2A3B56CD7E81}");
+            _smDefaultsWindow.Create();
 
             _structureAnalyzer =
                 new AssemblyStructureAnalyzer(
@@ -412,6 +419,7 @@ namespace Inventor2023AIAssistant
             string[] items = new string[]
             {
                 "dock iproperties",
+                "dock iprops",
                 "open iproperties panel",
                 "close iproperties panel",
                 "toggle iproperties panel",
@@ -1307,6 +1315,44 @@ namespace Inventor2023AIAssistant
                     return;
                 }
 
+                if (n == "sheet metal defaults" ||
+    n == "open sheet metal defaults" ||
+    n == "dock sheet metal defaults" ||
+    n == "sm defaults")
+                {
+                    try
+                    {
+                        _smDefaultsWindow.Show();
+                        Output(
+                            "✅ Sheet Metal Defaults " +
+                            "panel opened.");
+                    }
+                    catch (Exception ex)
+                    {
+                        Output(
+                            "Failed to open Sheet Metal " +
+                            "Defaults: " + ex.Message);
+                    }
+                    return;
+                }
+
+                if (n == "close sheet metal defaults")
+                {
+                    _smDefaultsWindow.Hide();
+                    Output(
+                        "Sheet Metal Defaults " +
+                        "panel closed.");
+                    return;
+                }
+
+                if (n == "toggle sheet metal defaults")
+                {
+                    _smDefaultsWindow.Toggle();
+                    Output(
+                        "Sheet Metal Defaults " +
+                        "panel toggled.");
+                    return;
+                }
                 if (n == "dock iproperties" ||
                     n == "open iproperties panel" ||
                     n == "iproperties panel")
