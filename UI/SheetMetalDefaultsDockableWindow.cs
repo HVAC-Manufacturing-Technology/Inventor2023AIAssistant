@@ -139,14 +139,58 @@ namespace Inventor2023AIAssistant
             Padding = new Padding(10);
             AutoScroll = true;
 
-            _lblRule = CreateLabel(
-                "Sheet Metal Rule:");
+            // ── Main layout table ─────────────────
+            var layout = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 3,
+                AutoSize = true,
+                BackColor = System.Drawing.Color
+                    .FromArgb(45, 45, 48),
+                Padding = new Padding(6)
+            };
+
+            layout.ColumnStyles.Add(
+                new ColumnStyle(
+                    SizeType.Percent, 40f));
+            layout.ColumnStyles.Add(
+                new ColumnStyle(
+                    SizeType.Percent, 52f));
+            layout.ColumnStyles.Add(
+                new ColumnStyle(
+                    SizeType.Absolute, 34f));
+
+            layout.RowStyles.Add(
+                new RowStyle(SizeType.Absolute, 26f));
+            layout.RowStyles.Add(
+                new RowStyle(SizeType.Absolute, 32f));
+            layout.RowStyles.Add(
+                new RowStyle(SizeType.Absolute, 30f));
+            layout.RowStyles.Add(
+                new RowStyle(SizeType.Absolute, 32f));
+            layout.RowStyles.Add(
+                new RowStyle(SizeType.Absolute, 26f));
+            layout.RowStyles.Add(
+                new RowStyle(SizeType.Absolute, 32f));
+            layout.RowStyles.Add(
+                new RowStyle(SizeType.Absolute, 26f));
+            layout.RowStyles.Add(
+                new RowStyle(SizeType.Absolute, 32f));
+            layout.RowStyles.Add(
+                new RowStyle(SizeType.Absolute, 38f));
+
+            // ── Row 0 — Rule Label ────────────────
+            _lblRule = CreateLabel("Sheet Metal Rule:");
+            layout.Controls.Add(_lblRule, 0, 0);
+            layout.SetColumnSpan(_lblRule, 3);
+
+            // ── Row 1 — Rule Dropdown + Edit ──────
             _cboRule = new ComboBox
             {
+                Dock = DockStyle.Fill,
                 BackColor = System.Drawing.Color
                     .FromArgb(37, 37, 38),
-                ForeColor =
-                    System.Drawing.Color.White,
+                ForeColor = System.Drawing.Color.White,
                 FlatStyle = FlatStyle.Flat,
                 DropDownStyle =
                     ComboBoxStyle.DropDownList
@@ -155,15 +199,20 @@ namespace Inventor2023AIAssistant
                 CboRule_Changed;
 
             _btnEditRule = CreateIconButton("✏️");
+            _btnEditRule.Dock = DockStyle.Fill;
             _btnEditRule.Click +=
                 (s, e) => EditActiveRule();
 
+            layout.Controls.Add(_cboRule, 0, 1);
+            layout.SetColumnSpan(_cboRule, 2);
+            layout.Controls.Add(_btnEditRule, 2, 1);
+
+            // ── Row 2 — Use Thickness Checkbox ────
             _chkUseThickness = new CheckBox
             {
                 Text = "Use Thickness from Rule",
-                ForeColor =
-                    System.Drawing.Color.White,
-                AutoSize = true,
+                ForeColor = System.Drawing.Color.White,
+                Dock = DockStyle.Fill,
                 Checked = true
             };
             _chkUseThickness.CheckedChanged +=
@@ -173,57 +222,88 @@ namespace Inventor2023AIAssistant
                         _chkUseThickness.Checked;
                     UpdateThicknessDisplay();
                 };
+            layout.Controls.Add(
+                _chkUseThickness, 0, 2);
+            layout.SetColumnSpan(_chkUseThickness, 3);
 
-            _lblThickness = CreateLabel(
-                "Thickness:");
+            // ── Row 3 — Thickness ─────────────────
+            _lblThickness = CreateLabel("Thickness:");
             _txtThickness = new WinTextBox
             {
+                Dock = DockStyle.Fill,
                 BackColor = System.Drawing.Color
                     .FromArgb(37, 37, 38),
-                ForeColor =
-                    System.Drawing.Color.White,
-                BorderStyle =
-                    BorderStyle.FixedSingle,
+                ForeColor = System.Drawing.Color.White,
+                BorderStyle = BorderStyle.FixedSingle,
                 Font = new System.Drawing.Font(
                     "Segoe UI", 9f),
                 ReadOnly = true
             };
 
+            layout.Controls.Add(_lblThickness, 0, 3);
+            layout.Controls.Add(_txtThickness, 1, 3);
+            layout.SetColumnSpan(_txtThickness, 2);
+
+            // ── Row 4 — Material Label ────────────
             _lblMaterial = CreateLabel("Material:");
+            layout.Controls.Add(_lblMaterial, 0, 4);
+            layout.SetColumnSpan(_lblMaterial, 3);
+
+            // ── Row 5 — Material Dropdown ─────────
             _cboMaterial = new ComboBox
             {
+                Dock = DockStyle.Fill,
                 BackColor = System.Drawing.Color
                     .FromArgb(37, 37, 38),
-                ForeColor =
-                    System.Drawing.Color.White,
+                ForeColor = System.Drawing.Color.White,
                 FlatStyle = FlatStyle.Flat,
                 DropDownStyle =
                     ComboBoxStyle.DropDownList
             };
+            layout.Controls.Add(_cboMaterial, 0, 5);
+            layout.SetColumnSpan(_cboMaterial, 3);
 
-            _lblUnfoldRule = CreateLabel(
-                "Unfold Rule:");
+            // ── Row 6 — Unfold Rule Label ─────────
+            _lblUnfoldRule = CreateLabel("Unfold Rule:");
+            layout.Controls.Add(_lblUnfoldRule, 0, 6);
+            layout.SetColumnSpan(_lblUnfoldRule, 3);
+
+            // ── Row 7 — Unfold Dropdown + Edit ────
             _cboUnfoldRule = new ComboBox
             {
+                Dock = DockStyle.Fill,
                 BackColor = System.Drawing.Color
                     .FromArgb(37, 37, 38),
-                ForeColor =
-                    System.Drawing.Color.White,
+                ForeColor = System.Drawing.Color.White,
                 FlatStyle = FlatStyle.Flat,
                 DropDownStyle =
                     ComboBoxStyle.DropDownList
             };
 
-            _btnEditUnfold =
-                CreateIconButton("✏️");
+            _btnEditUnfold = CreateIconButton("✏️");
+            _btnEditUnfold.Dock = DockStyle.Fill;
             _btnEditUnfold.Click +=
                 (s, e) => EditUnfoldRule();
+
+            layout.Controls.Add(_cboUnfoldRule, 0, 7);
+            layout.SetColumnSpan(_cboUnfoldRule, 2);
+            layout.Controls.Add(_btnEditUnfold, 2, 7);
+
+            // ── Row 8 — Buttons ───────────────────
+            var btnPanel = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                FlowDirection =
+                    FlowDirection.LeftToRight,
+                BackColor = System.Drawing.Color
+                    .FromArgb(45, 45, 48),
+                AutoSize = true
+            };
 
             _btnOK = CreateButton("OK",
                 System.Drawing.Color
                 .FromArgb(0, 122, 204));
-            _btnOK.Click += (s, e) =>
-                ApplyValues();
+            _btnOK.Click += (s, e) => ApplyValues();
 
             _btnCancel = CreateButton("Cancel",
                 System.Drawing.Color
@@ -234,63 +314,16 @@ namespace Inventor2023AIAssistant
             _btnApply = CreateButton("Apply",
                 System.Drawing.Color
                 .FromArgb(0, 122, 204));
-            _btnApply.Click += (s, e) =>
-                ApplyValues();
+            _btnApply.Click += (s, e) => ApplyValues();
 
-            // ── Manual Layout ─────────────────────
-            int y = 10;
-            int pad = 10;
-            int rowH = 26;
+            btnPanel.Controls.Add(_btnOK);
+            btnPanel.Controls.Add(_btnCancel);
+            btnPanel.Controls.Add(_btnApply);
 
-            AddLbl(_lblRule, 10, y);
-            y += 20;
-            AddCtrl(_cboRule, 10, y, 195, rowH);
-            AddCtrl(_btnEditRule, 210, y, 30, rowH);
-            y += rowH + pad;
+            layout.Controls.Add(btnPanel, 0, 8);
+            layout.SetColumnSpan(btnPanel, 3);
 
-            AddCtrl(_chkUseThickness,
-                10, y, 230, 22);
-            y += 28;
-
-            AddLbl(_lblThickness, 10, y);
-            AddCtrl(_txtThickness,
-                150, y - 2, 90, rowH);
-            y += rowH + pad;
-
-            AddLbl(_lblMaterial, 10, y);
-            y += 20;
-            AddCtrl(_cboMaterial,
-                10, y, 220, rowH);
-            y += rowH + pad;
-
-            AddLbl(_lblUnfoldRule, 10, y);
-            y += 20;
-            AddCtrl(_cboUnfoldRule,
-                10, y, 195, rowH);
-            AddCtrl(_btnEditUnfold,
-                210, y, 30, rowH);
-            y += rowH + pad + 10;
-
-            AddCtrl(_btnOK, 10, y, 70, 28);
-            AddCtrl(_btnCancel, 88, y, 70, 28);
-            AddCtrl(_btnApply, 166, y, 70, 28);
-        }
-
-        private void AddLbl(Label l, int x, int y)
-        {
-            l.Location =
-                new System.Drawing.Point(x, y);
-            Controls.Add(l);
-        }
-
-        private void AddCtrl(Control c,
-            int x, int y, int w, int h)
-        {
-            c.Location =
-                new System.Drawing.Point(x, y);
-            c.Size =
-                new System.Drawing.Size(w, h);
-            Controls.Add(c);
+            Controls.Add(layout);
         }
 
         private Label CreateLabel(string text)
