@@ -51,8 +51,9 @@ namespace Inventor2023AIAssistant
                         "SheetMetalDefaultsPanel",
                         "Sheet Metal Defaults");
 
+                // No minimum size restriction
                 _dockableWindow
-                    .SetMinimumSize(280, 420);
+                    .SetMinimumSize(50, 50);
 
                 _panel =
                     new SheetMetalDefaultsPanel(
@@ -123,74 +124,34 @@ namespace Inventor2023AIAssistant
 
         private SheetMetalStyle _activeStyle;
 
+        // Width threshold for narrow mode
+        private const int NarrowWidth = 200;
+
         public SheetMetalDefaultsPanel(
             Inventor.Application app)
         {
             _app = app;
-            BuildUI();
-            RefreshValues();
-        }
-
-        private void BuildUI()
-        {
+            Dock = DockStyle.Fill;
+            AutoScroll = true;
             BackColor = System.Drawing.Color
                 .FromArgb(45, 45, 48);
             ForeColor = System.Drawing.Color.White;
-            Padding = new Padding(10);
-            AutoScroll = true;
+            BuildControls();
+            RefreshValues();
+            Resize += (s, e) => UpdateLayout();
+        }
 
-            // ── Main layout table ─────────────────
-            var layout = new TableLayoutPanel
-            {
-                Dock = DockStyle.Fill,
-                ColumnCount = 3,
-                AutoSize = true,
-                BackColor = System.Drawing.Color
-                    .FromArgb(45, 45, 48),
-                Padding = new Padding(6)
-            };
+        private void BuildControls()
+        {
+            _lblRule = CreateLabel(
+                "Sheet Metal Rule:");
 
-            layout.ColumnStyles.Add(
-                new ColumnStyle(
-                    SizeType.Percent, 40f));
-            layout.ColumnStyles.Add(
-                new ColumnStyle(
-                    SizeType.Percent, 52f));
-            layout.ColumnStyles.Add(
-                new ColumnStyle(
-                    SizeType.Absolute, 34f));
-
-            layout.RowStyles.Add(
-                new RowStyle(SizeType.Absolute, 26f));
-            layout.RowStyles.Add(
-                new RowStyle(SizeType.Absolute, 32f));
-            layout.RowStyles.Add(
-                new RowStyle(SizeType.Absolute, 30f));
-            layout.RowStyles.Add(
-                new RowStyle(SizeType.Absolute, 32f));
-            layout.RowStyles.Add(
-                new RowStyle(SizeType.Absolute, 26f));
-            layout.RowStyles.Add(
-                new RowStyle(SizeType.Absolute, 32f));
-            layout.RowStyles.Add(
-                new RowStyle(SizeType.Absolute, 26f));
-            layout.RowStyles.Add(
-                new RowStyle(SizeType.Absolute, 32f));
-            layout.RowStyles.Add(
-                new RowStyle(SizeType.Absolute, 38f));
-
-            // ── Row 0 — Rule Label ────────────────
-            _lblRule = CreateLabel("Sheet Metal Rule:");
-            layout.Controls.Add(_lblRule, 0, 0);
-            layout.SetColumnSpan(_lblRule, 3);
-
-            // ── Row 1 — Rule Dropdown + Edit ──────
             _cboRule = new ComboBox
             {
-                Dock = DockStyle.Fill,
                 BackColor = System.Drawing.Color
                     .FromArgb(37, 37, 38),
-                ForeColor = System.Drawing.Color.White,
+                ForeColor =
+                    System.Drawing.Color.White,
                 FlatStyle = FlatStyle.Flat,
                 DropDownStyle =
                     ComboBoxStyle.DropDownList
@@ -199,21 +160,16 @@ namespace Inventor2023AIAssistant
                 CboRule_Changed;
 
             _btnEditRule = CreateIconButton("✏️");
-            _btnEditRule.Dock = DockStyle.Fill;
             _btnEditRule.Click +=
                 (s, e) => EditActiveRule();
 
-            layout.Controls.Add(_cboRule, 0, 1);
-            layout.SetColumnSpan(_cboRule, 2);
-            layout.Controls.Add(_btnEditRule, 2, 1);
-
-            // ── Row 2 — Use Thickness Checkbox ────
             _chkUseThickness = new CheckBox
             {
                 Text = "Use Thickness from Rule",
-                ForeColor = System.Drawing.Color.White,
-                Dock = DockStyle.Fill,
-                Checked = true
+                ForeColor =
+                    System.Drawing.Color.White,
+                Checked = true,
+                AutoSize = false
             };
             _chkUseThickness.CheckedChanged +=
                 (s, e) =>
@@ -222,88 +178,58 @@ namespace Inventor2023AIAssistant
                         _chkUseThickness.Checked;
                     UpdateThicknessDisplay();
                 };
-            layout.Controls.Add(
-                _chkUseThickness, 0, 2);
-            layout.SetColumnSpan(_chkUseThickness, 3);
 
-            // ── Row 3 — Thickness ─────────────────
-            _lblThickness = CreateLabel("Thickness:");
+            _lblThickness = CreateLabel(
+                "Thickness:");
             _txtThickness = new WinTextBox
             {
-                Dock = DockStyle.Fill,
                 BackColor = System.Drawing.Color
                     .FromArgb(37, 37, 38),
-                ForeColor = System.Drawing.Color.White,
-                BorderStyle = BorderStyle.FixedSingle,
+                ForeColor =
+                    System.Drawing.Color.White,
+                BorderStyle =
+                    BorderStyle.FixedSingle,
                 Font = new System.Drawing.Font(
                     "Segoe UI", 9f),
                 ReadOnly = true
             };
 
-            layout.Controls.Add(_lblThickness, 0, 3);
-            layout.Controls.Add(_txtThickness, 1, 3);
-            layout.SetColumnSpan(_txtThickness, 2);
-
-            // ── Row 4 — Material Label ────────────
-            _lblMaterial = CreateLabel("Material:");
-            layout.Controls.Add(_lblMaterial, 0, 4);
-            layout.SetColumnSpan(_lblMaterial, 3);
-
-            // ── Row 5 — Material Dropdown ─────────
+            _lblMaterial = CreateLabel(
+                "Material:");
             _cboMaterial = new ComboBox
             {
-                Dock = DockStyle.Fill,
                 BackColor = System.Drawing.Color
                     .FromArgb(37, 37, 38),
-                ForeColor = System.Drawing.Color.White,
+                ForeColor =
+                    System.Drawing.Color.White,
                 FlatStyle = FlatStyle.Flat,
                 DropDownStyle =
                     ComboBoxStyle.DropDownList
             };
-            layout.Controls.Add(_cboMaterial, 0, 5);
-            layout.SetColumnSpan(_cboMaterial, 3);
 
-            // ── Row 6 — Unfold Rule Label ─────────
-            _lblUnfoldRule = CreateLabel("Unfold Rule:");
-            layout.Controls.Add(_lblUnfoldRule, 0, 6);
-            layout.SetColumnSpan(_lblUnfoldRule, 3);
-
-            // ── Row 7 — Unfold Dropdown + Edit ────
+            _lblUnfoldRule = CreateLabel(
+                "Unfold Rule:");
             _cboUnfoldRule = new ComboBox
             {
-                Dock = DockStyle.Fill,
                 BackColor = System.Drawing.Color
                     .FromArgb(37, 37, 38),
-                ForeColor = System.Drawing.Color.White,
+                ForeColor =
+                    System.Drawing.Color.White,
                 FlatStyle = FlatStyle.Flat,
                 DropDownStyle =
                     ComboBoxStyle.DropDownList
             };
 
-            _btnEditUnfold = CreateIconButton("✏️");
-            _btnEditUnfold.Dock = DockStyle.Fill;
+            _btnEditUnfold =
+                CreateIconButton("✏️");
             _btnEditUnfold.Click +=
                 (s, e) => EditUnfoldRule();
-
-            layout.Controls.Add(_cboUnfoldRule, 0, 7);
-            layout.SetColumnSpan(_cboUnfoldRule, 2);
-            layout.Controls.Add(_btnEditUnfold, 2, 7);
-
-            // ── Row 8 — Buttons ───────────────────
-            var btnPanel = new FlowLayoutPanel
-            {
-                Dock = DockStyle.Fill,
-                FlowDirection =
-                    FlowDirection.LeftToRight,
-                BackColor = System.Drawing.Color
-                    .FromArgb(45, 45, 48),
-                AutoSize = true
-            };
 
             _btnOK = CreateButton("OK",
                 System.Drawing.Color
                 .FromArgb(0, 122, 204));
-            _btnOK.Click += (s, e) => ApplyValues();
+            _btnOK.Click += (s, e) =>
+                ApplyValues();
 
             _btnCancel = CreateButton("Cancel",
                 System.Drawing.Color
@@ -314,16 +240,185 @@ namespace Inventor2023AIAssistant
             _btnApply = CreateButton("Apply",
                 System.Drawing.Color
                 .FromArgb(0, 122, 204));
-            _btnApply.Click += (s, e) => ApplyValues();
+            _btnApply.Click += (s, e) =>
+                ApplyValues();
 
-            btnPanel.Controls.Add(_btnOK);
-            btnPanel.Controls.Add(_btnCancel);
-            btnPanel.Controls.Add(_btnApply);
+            Controls.AddRange(new Control[]
+            {
+                _lblRule, _cboRule, _btnEditRule,
+                _chkUseThickness,
+                _lblThickness, _txtThickness,
+                _lblMaterial, _cboMaterial,
+                _lblUnfoldRule, _cboUnfoldRule,
+                _btnEditUnfold,
+                _btnOK, _btnCancel, _btnApply
+            });
 
-            layout.Controls.Add(btnPanel, 0, 8);
-            layout.SetColumnSpan(btnPanel, 3);
+            UpdateLayout();
+        }
 
-            Controls.Add(layout);
+        private void UpdateLayout()
+        {
+            int w = ClientSize.Width;
+            int pad = 6;
+            int rowH = 24;
+            int btnH = 26;
+            int editW = 26;
+            bool narrow = w < NarrowWidth;
+            int y = pad;
+
+            if (narrow)
+            {
+                // ── Narrow mode ───────────────────
+                // Stack everything vertically
+                // with full width controls
+
+                // Rule label + combo full width
+                SetBounds(_lblRule,
+                    pad, y,
+                    w - pad * 2, 18);
+                y += 20;
+
+                SetBounds(_cboRule,
+                    pad, y,
+                    w - pad * 2 - editW - 2,
+                    rowH);
+                SetBounds(_btnEditRule,
+                    w - pad - editW, y,
+                    editW, rowH);
+                y += rowH + pad;
+
+                // Checkbox
+                SetBounds(_chkUseThickness,
+                    pad, y,
+                    w - pad * 2, rowH);
+                y += rowH + pad;
+
+                // Thickness label + field
+                SetBounds(_lblThickness,
+                    pad, y,
+                    w - pad * 2, 18);
+                y += 20;
+                SetBounds(_txtThickness,
+                    pad, y,
+                    w - pad * 2, rowH);
+                y += rowH + pad;
+
+                // Material label + combo
+                SetBounds(_lblMaterial,
+                    pad, y,
+                    w - pad * 2, 18);
+                y += 20;
+                SetBounds(_cboMaterial,
+                    pad, y,
+                    w - pad * 2, rowH);
+                y += rowH + pad;
+
+                // Unfold label + combo
+                SetBounds(_lblUnfoldRule,
+                    pad, y,
+                    w - pad * 2, 18);
+                y += 20;
+                SetBounds(_cboUnfoldRule,
+                    pad, y,
+                    w - pad * 2 - editW - 2,
+                    rowH);
+                SetBounds(_btnEditUnfold,
+                    w - pad - editW, y,
+                    editW, rowH);
+                y += rowH + pad * 2;
+
+                // Buttons stacked
+                int bw = w - pad * 2;
+                SetBounds(_btnOK,
+                    pad, y, bw, btnH);
+                y += btnH + 2;
+                SetBounds(_btnCancel,
+                    pad, y, bw, btnH);
+                y += btnH + 2;
+                SetBounds(_btnApply,
+                    pad, y, bw, btnH);
+                y += btnH + pad;
+            }
+            else
+            {
+                // ── Wide mode ─────────────────────
+                // Label on left value on right
+
+                int lblW = 90;
+                int valW = w - lblW - pad * 3
+                    - editW - 2;
+
+                // Rule
+                SetBounds(_lblRule,
+                    pad, y,
+                    w - pad * 2, 18);
+                y += 20;
+                SetBounds(_cboRule,
+                    pad, y,
+                    w - pad * 2 - editW - 2,
+                    rowH);
+                SetBounds(_btnEditRule,
+                    w - pad - editW, y,
+                    editW, rowH);
+                y += rowH + pad;
+
+                // Checkbox
+                SetBounds(_chkUseThickness,
+                    pad, y,
+                    w - pad * 2, rowH);
+                y += rowH + pad;
+
+                // Thickness inline
+                SetBounds(_lblThickness,
+                    pad, y + 3, lblW, 18);
+                SetBounds(_txtThickness,
+                    pad + lblW + pad, y,
+                    valW + editW + 2, rowH);
+                y += rowH + pad;
+
+                // Material
+                SetBounds(_lblMaterial,
+                    pad, y,
+                    w - pad * 2, 18);
+                y += 20;
+                SetBounds(_cboMaterial,
+                    pad, y,
+                    w - pad * 2, rowH);
+                y += rowH + pad;
+
+                // Unfold Rule
+                SetBounds(_lblUnfoldRule,
+                    pad, y,
+                    w - pad * 2, 18);
+                y += 20;
+                SetBounds(_cboUnfoldRule,
+                    pad, y,
+                    w - pad * 2 - editW - 2,
+                    rowH);
+                SetBounds(_btnEditUnfold,
+                    w - pad - editW, y,
+                    editW, rowH);
+                y += rowH + pad * 2;
+
+                // Buttons side by side
+                int bw = (w - pad * 4) / 3;
+                SetBounds(_btnOK,
+                    pad, y, bw, btnH);
+                SetBounds(_btnCancel,
+                    pad * 2 + bw, y, bw, btnH);
+                SetBounds(_btnApply,
+                    pad * 3 + bw * 2, y,
+                    bw, btnH);
+                y += btnH + pad;
+            }
+        }
+
+        private void SetBounds(
+            Control c,
+            int x, int y, int w, int h)
+        {
+            c.SetBounds(x, y, w, h);
         }
 
         private Label CreateLabel(string text)
@@ -335,7 +430,7 @@ namespace Inventor2023AIAssistant
                     .FromArgb(180, 180, 180),
                 Font = new System.Drawing.Font(
                     "Segoe UI", 9f),
-                AutoSize = true
+                AutoSize = false
             };
         }
 
@@ -391,7 +486,7 @@ namespace Inventor2023AIAssistant
                     (SheetMetalComponentDefinition)
                     part.ComponentDefinition;
 
-                // Load styles into dropdown
+                // Load styles
                 _cboRule.Items.Clear();
                 _activeStyle =
                     smDef.ActiveSheetMetalStyle;
@@ -412,32 +507,46 @@ namespace Inventor2023AIAssistant
                 _txtThickness.ReadOnly =
                     _chkUseThickness.Checked;
 
-                // Show thickness string directly
                 UpdateThicknessDisplay();
 
                 // Material
                 _cboMaterial.Items.Clear();
-                _cboMaterial.Items.Add(
-                    "By Sheet Metal Rule ( " +
-                    (part.ComponentDefinition
-                    .Material?.Name ?? "Steel") +
-                    " )");
+                try
+                {
+                    _cboMaterial.Items.Add(
+                        "By Rule ( " +
+                        part.ComponentDefinition
+                        .Material.Name + " )");
+                }
+                catch
+                {
+                    _cboMaterial.Items.Add(
+                        "By Sheet Metal Rule");
+                }
                 _cboMaterial.SelectedIndex = 0;
 
-                // Unfold Rule
+                // Unfold rule
                 _cboUnfoldRule.Items.Clear();
-                _cboUnfoldRule.Items.Add(
-                    "By Sheet Metal Rule ( " +
-                    (_activeStyle?.UnfoldMethod
-                    .ToString() ??
-                    "Default_kFactor") + " )");
+                try
+                {
+                    _cboUnfoldRule.Items.Add(
+                        "By Rule ( " +
+                        _activeStyle?.UnfoldMethod
+                        .ToString() + " )");
+                }
+                catch
+                {
+                    _cboUnfoldRule.Items.Add(
+                        "By Sheet Metal Rule");
+                }
                 _cboUnfoldRule.SelectedIndex = 0;
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug
                     .WriteLine(
-                    "RefreshValues: " + ex.Message);
+                    "RefreshValues: " +
+                    ex.Message);
             }
         }
 
@@ -538,25 +647,18 @@ namespace Inventor2023AIAssistant
                     (SheetMetalComponentDefinition)
                     part.ComponentDefinition;
 
-                // Apply selected style
                 if (_activeStyle != null)
-                {
                     smDef.SetBodySheetMetalStyle(
                         null, _activeStyle);
-                }
 
-                // Apply use thickness setting
                 smDef.UseSheetMetalStyleThickness =
                     _chkUseThickness.Checked;
 
-                // Apply manual thickness if needed
                 if (!_chkUseThickness.Checked &&
                     !string.IsNullOrEmpty(
                         _txtThickness.Text))
-                {
                     _activeStyle.Thickness =
                         _txtThickness.Text;
-                }
 
                 MessageBox.Show(
                     "✅ Sheet Metal defaults " +
