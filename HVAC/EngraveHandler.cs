@@ -1,11 +1,16 @@
 ﻿using System;
+using System.Reflection;
 using Inventor;
 
 namespace Inventor2023AIAssistant
 {
     public class EngraveHandler
     {
-        private Inventor.Application _app;
+        private readonly Inventor.Application _app;
+        private bool _waitingForFace = false;
+        private bool _waitingForMarkType = false;
+        private Face _selectedFace = null;
+        private string _markType = "surface";
 
         public EngraveHandler(
             Inventor.Application app)
@@ -18,67 +23,35 @@ namespace Inventor2023AIAssistant
             string n =
                 prompt.Trim().ToLowerInvariant();
 
-            // ── Debug command ─────────────────────────
-            if (n == "emboss debug")
+            // ── Step 3 — Mark type selected ───────
+            if (_waitingForMarkType)
             {
-                try
+                if (n == "surface" || n == "s")
                 {
-                    PartDocument part =
-                        (PartDocument)_app
-                            .ActiveDocument;
-                    EmbossFeatures ef =
-                        part.ComponentDefinition
-                            .Features.EmbossFeatures;
-                    Type t = ef.GetType();
-                    var methods = t.GetMethods();
-                    string result =
-                        "EmbossFeatures methods:" +
-                        System.Environment.NewLine;
-                    foreach (var m in methods)
-                        result += "- " + m.Name +
-                            System.Environment
-                                .NewLine;
-                    return result;
+                    _markType = "surface";
+                    _waitingForMarkType = false;
+                    return ExecuteEngrave();
                 }
-                catch (Exception ex)
+                if (n == "through" || n == "t")
                 {
-                    return "Debug error: " +
-                        ex.Message;
+                    _markType = "through";
+                    _waitingForMarkType = false;
+                    return ExecuteEngrave();
                 }
+                return
+                    "⚠️ Please type:\n" +
+                    "• 'surface' — Mark Surface\n" +
+                    "• 'through' — Mark Through";
             }
 
-            if (!n.Contains("engrave"))
-                return null;
-
-            try
+            // ── Step 2 — Execute after face ───────
+            if (_waitingForFace &&
+                (n == "go" || n == "ok" ||
+                 n == "done" || n == "run"))
             {
-                // ── Get active part document ──────────
-                Document doc = _app.ActiveDocument;
-                if (doc == null)
-                    return
-                        "No active document is open.";
-
-                if (doc.DocumentType !=
-                    DocumentTypeEnum.kPartDocumentObject)
-                    return
-                        "Engraving requires an active " +
-                        "Part document.";
-
-                PartDocument part =
-                    (PartDocument)doc;
-
-                // ── Get filename without extension ────
-                string fullName = doc.DisplayName;
-                string engraveName =
-                    System.IO.Path
-                        .GetFileNameWithoutExtension(
-                            fullName);
-
-                // ── Get selected face ─────────────────
                 SelectSet sel =
                     _app.ActiveDocument.SelectSet;
-
-                Face selectedFace = null;
+                _selectedFace = null;
 
                 if (sel != null && sel.Count > 0)
                 {
@@ -86,181 +59,264 @@ namespace Inventor2023AIAssistant
                     {
                         if (item is Face f)
                         {
-                            selectedFace = f;
+                            _selectedFace = f;
                             break;
                         }
                     }
                 }
 
-                if (selectedFace == null)
+                if (_selectedFace == null)
                     return
-                        "Please select a face first, " +
-                        "then type 'engrave part name'.";
+                        "⚠️ No face selected.\n" +
+                        "Please select a flat face " +
+                        "and type 'go' again.";
 
-                // ── Get face area ─────────────────────
+                _waitingForFace = false;
+                _waitingForMarkType = true;
+
+                return
+                    "How would you like to mark?\n\n" +
+                    "Type:\n" +
+                    "• 'surface' — Mark Surface\n" +
+                    "• 'through' — Mark Through";
+            }
+
+            // ── Step 1 — Start engrave ────────────
+            if (!n.Contains("engrave") &&
+                !n.Contains("emboss") &&
+                !n.Contains("mark"))
+                return null;
+
+            Document doc = _app.ActiveDocument;
+            if (doc == null)
+                return "No active document.";
+
+            if (doc.DocumentType !=
+                DocumentTypeEnum
+                .kPartDocumentObject)
+                return
+                    "Please open a Part " +
+                    "document first.";
+
+            PartDocument part =
+                (PartDocument)doc;
+
+            if (!(part.ComponentDefinition
+                is SheetMetalComponentDefinition))
+                return
+                    "⚠️ This feature requires " +
+                    "a Sheet Metal part.";
+
+            _waitingForFace = true;
+
+            return
+                "📋 Ready to engrave!\n\n" +
+                "1️⃣ Select a flat face " +
+                "on the part\n" +
+                "2️⃣ Type 'go' when ready\n\n" +
+                "The part name will be marked " +
+                "on the selected face.";
+        }
+
+        private string ExecuteEngrave()
+        {
+            string debugInfo = "";
+            try
+            {
+                PartDocument part =
+                    (PartDocument)_app.ActiveDocument;
+
+                SheetMetalComponentDefinition smDef =
+                    (SheetMetalComponentDefinition)
+                    part.ComponentDefinition;
+
+                SheetMetalFeatures smFeatures =
+                    (SheetMetalFeatures)smDef.Features;
+
+                // ── Get part name ─────────────────
+                string partName =
+                    System.IO.Path
+                    .GetFileNameWithoutExtension(
+                        _app.ActiveDocument
+                        .DisplayName);
+
+                // ── Calculate text height ─────────
                 double faceArea =
-                    selectedFace.Evaluator.Area;
-
-                // Convert from cm² to in²
+                    _selectedFace.Evaluator.Area;
                 double faceAreaIn =
                     faceArea * 0.155;
-
-                // Estimate short side from area
                 double shortSide =
                     Math.Sqrt(faceAreaIn) * 0.8;
-
-                // ── Calculate text height ─────────────
                 double textHeight =
                     shortSide * 0.15;
-
-                textHeight =
-                    Math.Max(0.125,
-                        Math.Min(0.500, textHeight));
-
+                textHeight = Math.Max(0.125,
+                    Math.Min(0.500, textHeight));
                 double textHeightCm =
                     textHeight * 2.54;
 
-                // ── Get gauge thickness ───────────────
-                double thickness = 0.040;
-                try
-                {
-                    Parameters parameters =
-                        part.ComponentDefinition
-                            .Parameters;
-                    foreach (Parameter p in parameters)
-                    {
-                        string pName =
-                            p.Name.ToLowerInvariant();
-                        if (pName == "thickness" ||
-                            pName == "gauge" ||
-                            pName == "sheetthickness" ||
-                            pName == "sheet_thickness")
-                        {
-                            thickness =
-                                (double)p.Value *
-                                0.393701;
-                            break;
-                        }
-                    }
-                }
-                catch { }
-
-                // ── Calculate engrave depth ───────────
-                double engraveDepth =
-                    thickness * 0.25;
-                
-                engraveDepth =
-                    Math.Max(0.008,
-                        Math.Min(0.030, engraveDepth));
-
-                double engraveDepthCm =
-                    engraveDepth * 2.54;
-
-                // ── Create sketch on selected face ────
+                // ── Create sketch on face ─────────
                 PlanarSketch sketch =
                     part.ComponentDefinition
-                        .Sketches.Add(selectedFace);
+                    .Sketches.Add(_selectedFace);
 
                 TransientGeometry tg =
                     _app.TransientGeometry;
 
-                Point2d centerPt =
-                    tg.CreatePoint2d(0, 0);
+                double boxWidth =
+                    textHeightCm *
+                    partName.Length * 0.6;
+                double boxHeight =
+                    textHeightCm * 1.2;
 
-                // ── Add text to sketch ────────────────
-                TextBox textBox =
-                    sketch.TextBoxes.AddFitted(
-                        centerPt,
-                        engraveName);
+                Point2d startPt =
+                    tg.CreatePoint2d(
+                        -(boxWidth / 2),
+                        -(boxHeight / 2));
 
-                textBox.FormattedText =
-                    "<StyleOverride FontSize='" +
-                    textHeightCm.ToString("F4") +
-                    "'>" +
-                    engraveName +
-                    "</StyleOverride>";
+                Point2d cornerPt =
+                    tg.CreatePoint2d(
+                        boxWidth / 2,
+                        boxHeight / 2);
 
-                // ── Build profiles ────────────────────
+                // ── Add text to sketch ────────────
+                Inventor.TextBox textBox =
+                    sketch.TextBoxes
+                    .AddByRectangle(
+                        startPt,
+                        cornerPt,
+                        "<StyleOverride FontSize='" +
+                        textHeightCm.ToString("F4") +
+                        "'>" + partName +
+                        "</StyleOverride>",
+                        Missing.Value);
+
+                debugInfo += "Sketch ✅ Text ✅\n";
+
+                // ── Build collection with TextBox ─
                 ObjectCollection profiles =
                     _app.TransientObjects
-                        .CreateObjectCollection();
+                    .CreateObjectCollection();
 
-                foreach (Profile prof in
-                    sketch.Profiles)
-                    profiles.Add(prof);
+                // Add the TextBox directly
+                profiles.Add(textBox);
 
-                if (profiles.Count == 0)
-                    return
-                        "Could not create text " +
-                        "profiles. Try a flatter face.";
+                debugInfo +=
+                    $"TextBox added to collection ✅\n";
 
-                // ── Get EmbossFeatures methods ────────
-                EmbossFeatures embossFeatures =
-                    part.ComponentDefinition
-                        .Features.EmbossFeatures;
+                // ── Find correct MarkStyle ────────
+                MarkStyle selectedStyle = null;
+                string targetStyle =
+                    _markType == "through"
+                    ? "through" : "surface";
 
-                Type embossType =
-                    embossFeatures.GetType();
+                foreach (MarkStyle ms in
+                    part.MarkStyles)
+                {
+                    debugInfo +=
+                        $"Style: {ms.Name}\n";
+                    if (ms.Name.ToLowerInvariant()
+                        .Contains(targetStyle) &&
+                        selectedStyle == null)
+                        selectedStyle = ms;
+                }
 
-                // Log all available methods
-                string methodLog =
-                    "Available methods: ";
-                foreach (var m in
-                    embossType.GetMethods())
-                    methodLog += m.Name + ", ";
+                if (selectedStyle == null)
+                    return debugInfo +
+                        "❌ No matching Mark " +
+                        "Style found.\n" +
+                        "Go to Manage → " +
+                        "Styles Editor → Mark.";
 
-                // ── Try Add with 5 parameters ─────────
+                debugInfo +=
+                    $"Using: " +
+                    $"{selectedStyle.Name} ✅\n";
+
+                // ── Create empty collection ───────
+                ObjectCollection emptyCol =
+                    _app.TransientObjects
+                    .CreateObjectCollection();
+
+                // ── Create mark definition ────────
+                MarkDefinition markDef =
+                    smFeatures.MarkFeatures
+                    .CreateMarkDefinition(
+                        emptyCol, selectedStyle);
+
+                debugInfo +=
+                    "Mark definition ✅\n";
+
+                // ── Add geometry set ──────────────
+                markDef.AddGeometrySet(
+                    profiles, selectedStyle);
+
+                debugInfo +=
+                    "Geometry set added ✅\n";
+                // ── Finish sketch first ───────────
                 try
                 {
-                    embossType.InvokeMember(
-                        "Add",
-                        System.Reflection
-                            .BindingFlags.InvokeMethod,
-                        null,
-                        embossFeatures,
-                        new object[]
-                        {
-                            profiles,
-                            PartFeatureExtentDirectionEnum
-                                .kNegativeExtentDirection,
-                            engraveDepthCm,
-                            EmbossTypeEnum
-                                .kEmbossFromFace,
-                            false
-                        });
-
-                    return
-                        "\u2705 Engraved '" +
-                        engraveName +
-                        "' on selected face." +
-                        System.Environment.NewLine +
-                        "Text height: " +
-                        Math.Round(textHeight, 3) +
-                        " in" +
-                        System.Environment.NewLine +
-                        "Engrave depth: " +
-                        Math.Round(engraveDepth, 3) +
-                        " in";
+                    sketch.ExitEdit();
+                    debugInfo += "Sketch finished ✅\n";
                 }
-                catch (Exception embossEx)
+                catch (Exception exitEx)
                 {
-                    // Return method list so we can
-                    // see what is available
-                    return
-                        "\u26a0 Sketch created but " +
-                        "emboss failed." +
-                        System.Environment.NewLine +
-                        "Error: " +
-                        embossEx.Message +
-                        System.Environment.NewLine +
-                        methodLog;
+                    debugInfo +=
+                        $"⚠️ ExitEdit: {exitEx.Message}\n";
                 }
+
+                // ── Debug MarkDefinition ──────────
+                try
+                {
+                    debugInfo +=
+                        $"GeomSetCount: " +
+                        $"{markDef.MarkGeometrySetCount}\n";
+                }
+                catch (Exception gcEx)
+                {
+                    debugInfo +=
+                        $"⚠️ GeomSet: {gcEx.Message}\n";
+                }
+
+                // ── Try Add via reflection ────────
+                Type mfType =
+                    smFeatures.MarkFeatures.GetType();
+
+                string methods = "Methods: ";
+                foreach (var m in mfType.GetMethods())
+                    methods += m.Name + " ";
+
+                debugInfo += methods + "\n";
+
+                try
+                {
+                    mfType.InvokeMember(
+                        "Add",
+                        BindingFlags.InvokeMethod,
+                        null,
+                        smFeatures.MarkFeatures,
+                        new object[] { markDef });
+                }
+                catch (Exception refEx)
+                {
+                    return debugInfo +
+                        $"❌ Reflection Add failed:\n" +
+                        $"{refEx.Message}\n" +
+                        $"Inner: " +
+                        $"{refEx.InnerException?.Message}";
+                }
+
+                return
+                    $"✅ Marked '{partName}'" +
+                    $" on selected face.\n" +
+                    $"Type: {_markType}\n" +
+                    $"Text height: " +
+                    $"{Math.Round(textHeight, 3)}" +
+                    $" in";
             }
             catch (Exception ex)
             {
-                return
-                    "Engrave failed: " +
-                    ex.Message;
+                return debugInfo +
+                    $"❌ Mark failed:\n" +
+                    $"{ex.Message}";
             }
         }
     }
