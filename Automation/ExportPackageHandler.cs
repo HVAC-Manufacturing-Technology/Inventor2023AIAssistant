@@ -33,13 +33,19 @@ namespace Inventor2023AIAssistant
 
                 if (doc.DocumentType ==
                     DocumentTypeEnum
+                    .kDrawingDocumentObject)
+                    return ExportDrawing(
+                        (DrawingDocument)doc);
+
+                if (doc.DocumentType ==
+                    DocumentTypeEnum
                     .kAssemblyDocumentObject)
                     return ExportAssembly(
                         (AssemblyDocument)doc);
 
                 return
-                    "❌ Please open a Part or " +
-                    "Assembly document.";
+                    "❌ Please open an IPT, " +
+                    "IDW or IAM document.";
             }
             catch (Exception ex)
             {
@@ -82,11 +88,11 @@ namespace Inventor2023AIAssistant
             return sb.ToString();
         }
 
+        // ── IPT ──────────────────────────────────
         private string ExportPart(
             PartDocument part)
         {
             var results = new List<string>();
-
             string folder =
                 SysPath.GetDirectoryName(
                     part.FullFileName);
@@ -101,169 +107,14 @@ namespace Inventor2023AIAssistant
             Directory.CreateDirectory(exportFolder);
             results.Add($"📁 {exportFolder}\n");
 
-            ExportStp(part, exportFolder,
-                baseName, results);
-            ExportPdf(part, exportFolder,
-                baseName, results);
-            ExportPng(exportFolder,
-                baseName, results);
-
-            if (part.ComponentDefinition
-                is SheetMetalComponentDefinition)
-                ExportDxf(part, exportFolder,
-                    baseName, results);
-
-            return BuildReport(
-                part.DisplayName,
-                exportFolder, results);
-        }
-
-        private string ExportAssembly(
-            AssemblyDocument asm)
-        {
-            var results = new List<string>();
-
-            string folder =
-                SysPath.GetDirectoryName(
-                    asm.FullFileName);
-            string baseName =
-                SysPath.GetFileNameWithoutExtension(
-                    asm.FullFileName);
-            string exportFolder =
-                SysPath.Combine(
-                    folder,
-                    baseName + "_Export");
-
-            Directory.CreateDirectory(exportFolder);
-            results.Add($"📁 {exportFolder}\n");
-
-            ExportStp(asm, exportFolder,
-                baseName + "_Assembly", results);
-            ExportPng(exportFolder,
-                baseName, results);
-
-            int partCount = 0;
-            int stpCount = 0;
-            int dxfCount = 0;
-
-            var exported = new HashSet<string>(
-                StringComparer.OrdinalIgnoreCase);
-
+            // STP
             try
             {
-                foreach (ComponentOccurrence occ in
-                    asm.ComponentDefinition
-                    .Occurrences)
-                {
-                    try
-                    {
-                        Document refDoc =
-                            occ.Definition
-                            .Document as Document;
-
-                        if (refDoc == null ||
-                            refDoc.DocumentType !=
-                            DocumentTypeEnum
-                            .kPartDocumentObject)
-                            continue;
-
-                        if (exported.Contains(
-                            refDoc.FullFileName))
-                            continue;
-
-                        exported.Add(
-                            refDoc.FullFileName);
-
-                        PartDocument part =
-                            (PartDocument)refDoc;
-                        string pName =
-                            SysPath
-                            .GetFileNameWithoutExtension(
-                                part.FullFileName);
-
-                        partCount++;
-
-                        var stpRes =
-                            new List<string>();
-                        ExportStp(part,
-                            exportFolder,
-                            pName, stpRes);
-                        if (stpRes.Count > 0 &&
-                            stpRes[0].Contains("✅"))
-                            stpCount++;
-
-                        if (part.ComponentDefinition
-                            is SheetMetalComponentDefinition)
-                        {
-                            var dxfRes =
-                                new List<string>();
-                            ExportDxf(part,
-                                exportFolder,
-                                pName, dxfRes);
-                            if (dxfRes.Count > 0 &&
-                                dxfRes[0]
-                                .Contains("✅"))
-                                dxfCount++;
-                        }
-                    }
-                    catch { }
-                }
-            }
-            catch { }
-
-            results.Add(
-                $"✅ Parts processed: {partCount}");
-            results.Add(
-                $"✅ STP files: {stpCount}");
-            if (dxfCount > 0)
-                results.Add(
-                    $"✅ DXF files: {dxfCount}");
-
-            return BuildReport(
-                asm.DisplayName,
-                exportFolder, results);
-        }
-
-        private void ExportStp(
-            object doc,
-            string folder,
-            string baseName,
-            List<string> results)
-        {
-            try
-            {
-                string stpPath = SysPath.Combine(
-                    folder, baseName + ".stp");
-
-                TranslatorAddIn addin =
-                    GetTranslator(
-                    "{90AF7F40-0C01-11D5" +
-                    "-8E83-0010B541CD80}");
-
-                if (addin == null)
-                {
-                    results.Add(
-                        "⚠️ STP translator " +
-                        "not found");
-                    return;
-                }
-
-                NameValueMap opts =
-                    _app.TransientObjects
-                    .CreateNameValueMap();
-                TranslationContext ctx =
-                    _app.TransientObjects
-                    .CreateTranslationContext();
-                ctx.Type =
-                    IOMechanismEnum
-                    .kUnspecifiedIOMechanism;
-                DataMedium dm =
-                    _app.TransientObjects
-                    .CreateDataMedium();
-                dm.FileName = stpPath;
-
-                addin.SaveCopyAs(
-                    doc, ctx, opts, dm);
+                string stpPath =
+                    SysPath.Combine(
+                        exportFolder,
+                        baseName + ".stp");
+                part.SaveAs(stpPath, true);
                 results.Add("✅ STP exported");
             }
             catch (Exception ex)
@@ -271,67 +122,94 @@ namespace Inventor2023AIAssistant
                 results.Add(
                     $"⚠️ STP failed: {ex.Message}");
             }
+
+                       return BuildReport(
+                part.DisplayName,
+                exportFolder, results);
         }
 
-        private void ExportPdf(
-            PartDocument part,
-            string folder,
-            string baseName,
-            List<string> results)
+        // ── IDW ──────────────────────────────────
+        private string ExportDrawing(
+            DrawingDocument drawing)
         {
+            var results = new List<string>();
+            string folder =
+                SysPath.GetDirectoryName(
+                    drawing.FullFileName);
+            string baseName =
+                SysPath.GetFileNameWithoutExtension(
+                    drawing.FullFileName);
+            string exportFolder =
+                SysPath.Combine(
+                    folder,
+                    baseName + "_Export");
+
+            Directory.CreateDirectory(exportFolder);
+            results.Add($"📁 {exportFolder}\n");
+
+            // PDF
             try
             {
-                string pdfPath = SysPath.Combine(
-                    folder, baseName + ".pdf");
+                string pdfPath =
+                    SysPath.Combine(
+                        exportFolder,
+                        baseName + ".pdf");
 
-                TranslatorAddIn addin =
-                    GetTranslator(
-                    "{0AC6FD96-2F4D-42CE" +
-                    "-8BE0-8AEA580399E4}");
-
-                if (addin == null)
-                {
-                    results.Add(
-                        "⚠️ PDF translator " +
-                        "not found");
-                    return;
-                }
-
-                NameValueMap opts =
-                    _app.TransientObjects
-                    .CreateNameValueMap();
-                TranslationContext ctx =
-                    _app.TransientObjects
-                    .CreateTranslationContext();
-                ctx.Type =
-                    IOMechanismEnum
-                    .kUnspecifiedIOMechanism;
-                DataMedium dm =
-                    _app.TransientObjects
-                    .CreateDataMedium();
-                dm.FileName = pdfPath;
-
-                addin.SaveCopyAs(
-                    part, ctx, opts, dm);
+                drawing.SaveAs(pdfPath, true);
                 results.Add("✅ PDF exported");
             }
-            catch (Exception ex)
+            catch
             {
-                results.Add(
-                    $"⚠️ PDF failed: {ex.Message}");
-            }
-        }
+                // Try translator method
+                try
+                {
+                    string pdfPath =
+                        SysPath.Combine(
+                            exportFolder,
+                            baseName + ".pdf");
 
-        private void ExportPng(
-            string folder,
-            string baseName,
-            List<string> results)
-        {
+                    TranslatorAddIn pdfAddin =
+                        GetTranslator(
+                        "{0AC6FD96-2F4D-42CE" +
+                        "-8BE0-8AEA580399E4}");
+
+                    if (pdfAddin != null)
+                    {
+                        NameValueMap opts =
+                            _app.TransientObjects
+                            .CreateNameValueMap();
+                        TranslationContext ctx =
+                            _app.TransientObjects
+                            .CreateTranslationContext();
+                        ctx.Type =
+                            IOMechanismEnum
+                            .kUnspecifiedIOMechanism;
+                        DataMedium dm =
+                            _app.TransientObjects
+                            .CreateDataMedium();
+                        dm.FileName = pdfPath;
+                        pdfAddin.SaveCopyAs(
+                            drawing, ctx, opts, dm);
+                        results.Add("✅ PDF exported");
+                    }
+                    else
+                        results.Add(
+                            "⚠️ PDF translator not found");
+                }
+                catch (Exception ex)
+                {
+                    results.Add(
+                        $"⚠️ PDF failed: {ex.Message}");
+                }
+            }
+
+            // PNG
             try
             {
-                string pngPath = SysPath.Combine(
-                    folder, baseName + ".png");
-
+                string pngPath =
+                    SysPath.Combine(
+                        exportFolder,
+                        baseName + ".png");
                 _app.ActiveView.SaveAsBitmap(
                     pngPath, 1920, 1080);
                 results.Add("✅ PNG exported");
@@ -341,8 +219,53 @@ namespace Inventor2023AIAssistant
                 results.Add(
                     $"⚠️ PNG failed: {ex.Message}");
             }
+
+            return BuildReport(
+                drawing.DisplayName,
+                exportFolder, results);
         }
 
+        // ── IAM ──────────────────────────────────
+        private string ExportAssembly(
+            AssemblyDocument asm)
+        {
+            var results = new List<string>();
+            string folder =
+                SysPath.GetDirectoryName(
+                    asm.FullFileName);
+            string baseName =
+                SysPath.GetFileNameWithoutExtension(
+                    asm.FullFileName);
+            string exportFolder =
+                SysPath.Combine(
+                    folder,
+                    baseName + "_Export");
+
+            Directory.CreateDirectory(exportFolder);
+            results.Add($"📁 {exportFolder}\n");
+
+            // STP
+            try
+            {
+                string stpPath =
+                    SysPath.Combine(
+                        exportFolder,
+                        baseName + ".stp");
+                asm.SaveAs(stpPath, true);
+                results.Add("✅ STP exported");
+            }
+            catch (Exception ex)
+            {
+                results.Add(
+                    $"⚠️ STP failed: {ex.Message}");
+            }
+
+            return BuildReport(
+                asm.DisplayName,
+                exportFolder, results);
+        }
+
+        // ── DXF ──────────────────────────────────
         private void ExportDxf(
             PartDocument part,
             string folder,
@@ -351,12 +274,14 @@ namespace Inventor2023AIAssistant
         {
             try
             {
-                string dxfPath = SysPath.Combine(
-                    folder, baseName + ".dxf");
+                string dxfPath =
+                    SysPath.Combine(
+                        folder,
+                        baseName + ".dxf");
 
                 TranslatorAddIn addin =
                     GetTranslator(
-                    "{C24E3AC2-122E-11D5" +
+                    "{C24E3AC4-122E-11D5" +
                     "-8E91-0010B541CD80}");
 
                 if (addin == null)
