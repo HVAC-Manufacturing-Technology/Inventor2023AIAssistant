@@ -44,6 +44,7 @@ namespace Inventor2023AIAssistant
         private QuickMeasure _quickMeasure;
         private IPropertiesDockableWindow _iPropWindow;
         private DesignPackageChecker _designChecker;
+        private ExportPackageHandler _exportPackage;
         private SheetMetalDefaultsDockableWindow _smDefaultsWindow;
 
         private List<string> _savedPrompts;
@@ -152,6 +153,10 @@ namespace Inventor2023AIAssistant
 
             _designChecker =
     new DesignPackageChecker(
+        _inventorApplication);
+
+            _exportPackage =
+    new ExportPackageHandler(
         _inventorApplication);
 
             _structureAnalyzer =
@@ -1319,7 +1324,19 @@ namespace Inventor2023AIAssistant
                         response);
                     return;
                 }
-
+                if (n == "create export package" ||
+    n == "export package" ||
+    n == "package export" ||
+    n == "export all")
+                {
+                    string result =
+                        _exportPackage
+                        .CreateExportPackage();
+                    Output(result);
+                    _chatHistory
+                        .LogAssistantMessage(result);
+                    return;
+                }
                 if (n == "check design package" ||
     n == "check package" ||
     n == "package check" ||
