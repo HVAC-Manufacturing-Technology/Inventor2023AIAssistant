@@ -44,6 +44,7 @@ namespace Inventor2023AIAssistant
         private QuickMeasure _quickMeasure;
         private IPropertiesDockableWindow _iPropWindow;
         private DesignPackageChecker _designChecker;
+        private OpenDrawingHandler _openDrawing;
         private ExportPackageHandler _exportPackage;
         private SheetMetalDefaultsDockableWindow _smDefaultsWindow;
 
@@ -157,6 +158,10 @@ namespace Inventor2023AIAssistant
 
             _exportPackage =
     new ExportPackageHandler(
+        _inventorApplication);
+
+            _openDrawing =
+    new OpenDrawingHandler(
         _inventorApplication);
 
             _structureAnalyzer =
@@ -1331,6 +1336,22 @@ namespace Inventor2023AIAssistant
                         _exportPackage.ListTranslators();
                     Output(result);
                     return;
+                }
+                if (n == "open drawing" ||
+    n == "open part drawing" ||
+    n == "drawing from balloon" ||
+    n == "open idw")
+                {
+                    string result =
+                        _openDrawing
+                        .TryHandleOpenDrawing(prompt);
+                    if (result != null)
+                    {
+                        Output(result);
+                        _chatHistory
+                            .LogAssistantMessage(result);
+                        return;
+                    }
                 }
                 if (n == "create export package" ||
     n == "export package" ||

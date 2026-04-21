@@ -66,6 +66,7 @@
     <Compile Include="Analysis\AssemblyStructureAnalyzer.cs" />
     <Compile Include="Automation\DesignPackageChecker.cs" />
     <Compile Include="Automation\ExportPackageHandler.cs" />
+    <Compile Include="Automation\OpenDrawingHandler.cs" />
     <Compile Include="Automation\VaultHandler.cs" />
     <Compile Include="HVAC\EngraveHandler.cs" />
     <Compile Include="ETC\InstallerAction.cs">
