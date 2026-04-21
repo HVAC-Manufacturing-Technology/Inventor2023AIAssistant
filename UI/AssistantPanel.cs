@@ -43,6 +43,7 @@ namespace Inventor2023AIAssistant
         private ParameterExporter _paramExporter;
         private QuickMeasure _quickMeasure;
         private IPropertiesDockableWindow _iPropWindow;
+        private DesignPackageChecker _designChecker;
         private SheetMetalDefaultsDockableWindow _smDefaultsWindow;
 
         private List<string> _savedPrompts;
@@ -148,6 +149,10 @@ namespace Inventor2023AIAssistant
         _inventorApplication,
         "{D4E52C91-7F3A-4B22-9E8F-2A3B56CD7E81}");
             _smDefaultsWindow.Create();
+
+            _designChecker =
+    new DesignPackageChecker(
+        _inventorApplication);
 
             _structureAnalyzer =
                 new AssemblyStructureAnalyzer(
@@ -1315,6 +1320,19 @@ namespace Inventor2023AIAssistant
                     return;
                 }
 
+                if (n == "check design package" ||
+    n == "check package" ||
+    n == "package check" ||
+    n == "design check")
+                {
+                    string result =
+                        _designChecker
+                        .CheckDesignPackage();
+                    Output(result);
+                    _chatHistory
+                        .LogAssistantMessage(result);
+                    return;
+                }
                 if (n == "sheet metal defaults" ||
     n == "open sheet metal defaults" ||
     n == "dock sheet metal defaults" ||
