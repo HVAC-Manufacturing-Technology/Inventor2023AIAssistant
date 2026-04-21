@@ -1324,6 +1324,14 @@ namespace Inventor2023AIAssistant
                         response);
                     return;
                 }
+                if (n == "list translators" ||
+    n == "show translators")
+                {
+                    string result =
+                        _exportPackage.ListTranslators();
+                    Output(result);
+                    return;
+                }
                 if (n == "create export package" ||
     n == "export package" ||
     n == "package export" ||

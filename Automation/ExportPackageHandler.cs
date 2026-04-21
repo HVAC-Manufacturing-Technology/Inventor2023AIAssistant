@@ -43,39 +43,71 @@ namespace Inventor2023AIAssistant
             }
             catch (Exception ex)
             {
-                return $"❌ Export failed:\n{ex.Message}";
+                return
+                    $"❌ Export failed:\n" +
+                    $"{ex.Message}";
             }
         }
 
-        private string ExportPart(PartDocument part)
+        public string ListTranslators()
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine(
+                "📋 Available Translators:");
+            sb.AppendLine(new string('─', 35));
+            try
+            {
+                foreach (ApplicationAddIn addin in
+                    _app.ApplicationAddIns)
+                {
+                    try
+                    {
+                        if (addin is TranslatorAddIn)
+                        {
+                            sb.AppendLine(
+                                addin.DisplayName);
+                            sb.AppendLine(
+                                "  " +
+                                addin.ClassIdString);
+                        }
+                    }
+                    catch { }
+                }
+            }
+            catch (Exception ex)
+            {
+                sb.AppendLine(
+                    $"Error: {ex.Message}");
+            }
+            return sb.ToString();
+        }
+
+        private string ExportPart(
+            PartDocument part)
         {
             var results = new List<string>();
 
-            string folder = SysPath.GetDirectoryName(
-                part.FullFileName);
+            string folder =
+                SysPath.GetDirectoryName(
+                    part.FullFileName);
             string baseName =
                 SysPath.GetFileNameWithoutExtension(
                     part.FullFileName);
-            string exportFolder = SysPath.Combine(
-                folder, baseName + "_Export");
+            string exportFolder =
+                SysPath.Combine(
+                    folder,
+                    baseName + "_Export");
 
             Directory.CreateDirectory(exportFolder);
-            results.Add(
-                $"📁 {exportFolder}\n");
+            results.Add($"📁 {exportFolder}\n");
 
-            // STP
             ExportStp(part, exportFolder,
                 baseName, results);
-
-            // PDF
             ExportPdf(part, exportFolder,
                 baseName, results);
-
-            // PNG
             ExportPng(exportFolder,
                 baseName, results);
 
-            // DXF (sheet metal only)
             if (part.ComponentDefinition
                 is SheetMetalComponentDefinition)
                 ExportDxf(part, exportFolder,
@@ -91,26 +123,25 @@ namespace Inventor2023AIAssistant
         {
             var results = new List<string>();
 
-            string folder = SysPath.GetDirectoryName(
-                asm.FullFileName);
+            string folder =
+                SysPath.GetDirectoryName(
+                    asm.FullFileName);
             string baseName =
                 SysPath.GetFileNameWithoutExtension(
                     asm.FullFileName);
-            string exportFolder = SysPath.Combine(
-                folder, baseName + "_Export");
+            string exportFolder =
+                SysPath.Combine(
+                    folder,
+                    baseName + "_Export");
 
             Directory.CreateDirectory(exportFolder);
             results.Add($"📁 {exportFolder}\n");
 
-            // Assembly STP
             ExportStp(asm, exportFolder,
                 baseName + "_Assembly", results);
-
-            // Assembly PNG
             ExportPng(exportFolder,
                 baseName, results);
 
-            // Each part individually
             int partCount = 0;
             int stpCount = 0;
             int dxfCount = 0;
@@ -127,8 +158,8 @@ namespace Inventor2023AIAssistant
                     try
                     {
                         Document refDoc =
-                            occ.Definition.Document
-                            as Document;
+                            occ.Definition
+                            .Document as Document;
 
                         if (refDoc == null ||
                             refDoc.DocumentType !=
@@ -152,28 +183,25 @@ namespace Inventor2023AIAssistant
 
                         partCount++;
 
-                        // STP per part
-                        var stpResults =
+                        var stpRes =
                             new List<string>();
                         ExportStp(part,
                             exportFolder,
-                            pName, stpResults);
-                        if (stpResults.Count > 0 &&
-                            stpResults[0]
-                            .Contains("✅"))
+                            pName, stpRes);
+                        if (stpRes.Count > 0 &&
+                            stpRes[0].Contains("✅"))
                             stpCount++;
 
-                        // DXF for sheet metal
                         if (part.ComponentDefinition
                             is SheetMetalComponentDefinition)
                         {
-                            var dxfResults =
+                            var dxfRes =
                                 new List<string>();
                             ExportDxf(part,
                                 exportFolder,
-                                pName, dxfResults);
-                            if (dxfResults.Count > 0
-                                && dxfResults[0]
+                                pName, dxfRes);
+                            if (dxfRes.Count > 0 &&
+                                dxfRes[0]
                                 .Contains("✅"))
                                 dxfCount++;
                         }
@@ -215,7 +243,8 @@ namespace Inventor2023AIAssistant
                 if (addin == null)
                 {
                     results.Add(
-                        "⚠️ STP translator not found");
+                        "⚠️ STP translator " +
+                        "not found");
                     return;
                 }
 
@@ -263,7 +292,8 @@ namespace Inventor2023AIAssistant
                 if (addin == null)
                 {
                     results.Add(
-                        "⚠️ PDF translator not found");
+                        "⚠️ PDF translator " +
+                        "not found");
                     return;
                 }
 
@@ -332,7 +362,8 @@ namespace Inventor2023AIAssistant
                 if (addin == null)
                 {
                     results.Add(
-                        "⚠️ DXF translator not found");
+                        "⚠️ DXF translator " +
+                        "not found");
                     return;
                 }
 
@@ -390,7 +421,8 @@ namespace Inventor2023AIAssistant
             var sb = new StringBuilder();
             sb.AppendLine(
                 "📦 Export Package Created");
-            sb.AppendLine($"Document: {docName}");
+            sb.AppendLine(
+                $"Document: {docName}");
             sb.AppendLine(new string('─', 35));
             foreach (var r in results)
                 sb.AppendLine(r);
