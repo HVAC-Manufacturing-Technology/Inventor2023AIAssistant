@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Reflection;
 using SysFile = System.IO.File;
 using SysPath = System.IO.Path;
 using Inventor;
@@ -30,7 +31,6 @@ namespace Inventor2023AIAssistant
 
             try
             {
-                // ── Verify active drawing doc ─────
                 Document doc = _app.ActiveDocument;
                 if (doc == null)
                     return "❌ No active document.";
@@ -42,7 +42,6 @@ namespace Inventor2023AIAssistant
                         "❌ Please open a Drawing " +
                         "(IDW) document first.";
 
-                // ── Get selected balloon ──────────
                 SelectSet sel =
                     _app.ActiveDocument.SelectSet;
 
@@ -52,7 +51,6 @@ namespace Inventor2023AIAssistant
                         "balloon first then " +
                         "type 'open drawing'.";
 
-                // ── Find balloon in selection ─────
                 Balloon balloon = null;
                 foreach (object item in sel)
                 {
@@ -69,7 +67,7 @@ namespace Inventor2023AIAssistant
                         "Please select a balloon " +
                         "and try again.";
 
-                // ── Get referenced file ───────────
+                // ── Get file path via reflection ──
                 string partPath = null;
 
                 try
@@ -81,26 +79,65 @@ namespace Inventor2023AIAssistant
                         valueSets.Count == 0)
                         return
                             "❌ Balloon has no " +
-                            "referenced files.";
+                            "value sets.";
 
                     BalloonValueSet valueSet =
                         valueSets[1];
 
-                    ReferencedFileDescriptors refs =
+                    // Try ReferencedFiles via
+                    // reflection to get FullFileName
+                    object refs =
                         valueSet.ReferencedFiles;
 
-                    if (refs == null ||
-                        refs.Count == 0)
+                    if (refs == null)
                         return
                             "❌ No referenced " +
-                            "files in balloon.";
+                            "files found.";
 
-                    foreach (FileDescriptor fd
-                        in refs)
+                    // Get count
+                    int count = 0;
+                    try
                     {
-                        partPath = fd.FullFileName;
-                        break;
+                        count = (int)refs.GetType()
+                            .InvokeMember("Count",
+                            BindingFlags.GetProperty,
+                            null, refs, null);
                     }
+                    catch { }
+
+                    if (count == 0)
+                        return
+                            "❌ Referenced files " +
+                            "collection is empty.";
+
+                    // Get item 1
+                    object fd = null;
+                    try
+                    {
+                        fd = refs.GetType()
+                            .InvokeMember("Item",
+                            BindingFlags.InvokeMethod,
+                            null, refs,
+                            new object[] { 1 });
+                    }
+                    catch { }
+
+                    if (fd == null)
+                        return
+                            "❌ Could not get " +
+                            "first file descriptor.";
+
+                    // Get FullFileName
+                    try
+                    {
+                        partPath = (string)fd
+                            .GetType()
+                            .InvokeMember(
+                            "FullFileName",
+                            BindingFlags.GetProperty,
+                            null, fd, null);
+                    }
+                    catch { }
                 }
                 catch (Exception ex)
                 {
@@ -115,29 +152,26 @@ namespace Inventor2023AIAssistant
                         "❌ Could not find " +
                         "referenced file path.";
 
-                // ── Find matching IDW ─────────────
                 string idwPath =
                     FindMatchingDrawing(partPath);
 
                 if (idwPath == null)
                 {
                     string partName =
-                        SysPath.GetFileName(
-                            partPath);
+                        SysPath.GetFileName(partPath);
                     return
-                        "⚠️ No drawing found for:\n" +
-                        partName + "\n\n" +
+                        "⚠️ No drawing found for:\n"
+                        + partName + "\n" +
                         "Looked in same folder " +
                         "as part file.";
                 }
 
-                // ── Open the IDW ──────────────────
                 _app.Documents.Open(idwPath, true);
 
                 string idwName =
                     SysPath.GetFileName(idwPath);
-                return "✅ Opened drawing:\n" +
-                    idwName;
+                return
+                    "✅ Opened drawing:\n" + idwName;
             }
             catch (Exception ex)
             {
