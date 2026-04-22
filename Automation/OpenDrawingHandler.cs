@@ -10,6 +10,7 @@ namespace Inventor2023AIAssistant
     public class OpenDrawingHandler
     {
         private readonly Inventor.Application _app;
+        private string _lastSearchLog = "";
 
         public OpenDrawingHandler(
             Inventor.Application app)
@@ -67,7 +68,6 @@ namespace Inventor2023AIAssistant
                         "Please select a balloon " +
                         "and try again.";
 
-                // ── Get file path via reflection ──
                 string partPath = null;
 
                 try
@@ -84,8 +84,6 @@ namespace Inventor2023AIAssistant
                     BalloonValueSet valueSet =
                         valueSets[1];
 
-                    // Try ReferencedFiles via
-                    // reflection to get FullFileName
                     object refs =
                         valueSet.ReferencedFiles;
 
@@ -94,7 +92,6 @@ namespace Inventor2023AIAssistant
                             "❌ No referenced " +
                             "files found.";
 
-                    // Get count
                     int count = 0;
                     try
                     {
@@ -110,22 +107,65 @@ namespace Inventor2023AIAssistant
                             "❌ Referenced files " +
                             "collection is empty.";
 
-                    // Get item 1
+                    // Get first item via enumerator
                     object fd = null;
                     try
                     {
-                        fd = refs.GetType()
-                            .InvokeMember("Item",
-                            BindingFlags.InvokeMethod,
-                            null, refs,
-                            new object[] { 1 });
+                        var enumerator =
+                            refs.GetType()
+                            .InvokeMember(
+                                "GetEnumerator",
+                                BindingFlags
+                                .InvokeMethod,
+                                null, refs, null)
+                            as System.Collections
+                            .IEnumerator;
+
+                        if (enumerator != null &&
+                            enumerator.MoveNext())
+                            fd = enumerator.Current;
                     }
                     catch { }
+
+                    // Fallback index 0
+                    if (fd == null)
+                    {
+                        try
+                        {
+                            fd = refs.GetType()
+                                .InvokeMember("Item",
+                                BindingFlags
+                                .InvokeMethod |
+                                BindingFlags
+                                .GetProperty,
+                                null, refs,
+                                new object[] { 0 });
+                        }
+                        catch { }
+                    }
+
+                    // Fallback index 1
+                    if (fd == null)
+                    {
+                        try
+                        {
+                            fd = refs.GetType()
+                                .InvokeMember("Item",
+                                BindingFlags
+                                .InvokeMethod |
+                                BindingFlags
+                                .GetProperty,
+                                null, refs,
+                                new object[] { 1 });
+                        }
+                        catch { }
+                    }
 
                     if (fd == null)
                         return
                             "❌ Could not get " +
-                            "first file descriptor.";
+                            "file descriptor.\n" +
+                            "Count was: " + count;
 
                     // Get FullFileName
                     try
@@ -160,10 +200,10 @@ namespace Inventor2023AIAssistant
                     string partName =
                         SysPath.GetFileName(partPath);
                     return
-                        "⚠️ No drawing found for:\n"
-                        + partName + "\n" +
-                        "Looked in same folder " +
-                        "as part file.";
+                        "⚠️ No drawing found for:\n" +
+                        partName + "\n\n" +
+                        "Search log:\n" +
+                        _lastSearchLog;
                 }
 
                 _app.Documents.Open(idwPath, true);
@@ -184,6 +224,7 @@ namespace Inventor2023AIAssistant
         private string FindMatchingDrawing(
             string partPath)
         {
+            _lastSearchLog = "";
             try
             {
                 string folder =
@@ -194,47 +235,72 @@ namespace Inventor2023AIAssistant
                     .GetFileNameWithoutExtension(
                         partPath);
 
-                // Same folder IDW
+                _lastSearchLog +=
+                    "Base: " + baseName + "\n";
+                _lastSearchLog +=
+                    "Start: " + folder + "\n";
+
+                // Same folder
                 string idwPath =
                     SysPath.Combine(
                         folder, baseName + ".idw");
+                _lastSearchLog +=
+                    "Check: " + idwPath + "\n";
                 if (SysFile.Exists(idwPath))
                     return idwPath;
 
-                // Same folder DWG
                 string dwgPath =
                     SysPath.Combine(
                         folder, baseName + ".dwg");
                 if (SysFile.Exists(dwgPath))
                     return dwgPath;
 
-                // One level up
-                string parentFolder =
-                    SysPath.GetDirectoryName(folder);
-                if (parentFolder != null)
+                // Search up 4 levels
+                string searchFolder = folder;
+                for (int i = 0; i < 4; i++)
                 {
+                    searchFolder =
+                        SysPath.GetDirectoryName(
+                            searchFolder);
+                    if (searchFolder == null) break;
+
+                    _lastSearchLog +=
+                        "Level " + (i + 1) +
+                        ": " + searchFolder + "\n";
+
                     idwPath = SysPath.Combine(
-                        parentFolder,
+                        searchFolder,
                         baseName + ".idw");
                     if (SysFile.Exists(idwPath))
                         return idwPath;
-                }
 
-                // Search subfolders
-                try
-                {
-                    foreach (string subDir in
-                        Directory.GetDirectories(
-                            folder))
+                    try
                     {
-                        idwPath = SysPath.Combine(
-                            subDir,
-                            baseName + ".idw");
-                        if (SysFile.Exists(idwPath))
-                            return idwPath;
+                        foreach (string subDir in
+                            Directory
+                            .GetDirectories(
+                                searchFolder,
+                                "*",
+                                SearchOption
+                                .AllDirectories))
+                        {
+                            idwPath = SysPath
+                                .Combine(subDir,
+                                baseName + ".idw");
+                            if (SysFile
+                                .Exists(idwPath))
+                                return idwPath;
+
+                            dwgPath = SysPath
+                                .Combine(subDir,
+                                baseName + ".dwg");
+                            if (SysFile
+                                .Exists(dwgPath))
+                                return dwgPath;
+                        }
                     }
+                    catch { }
                 }
-                catch { }
 
                 return null;
             }
