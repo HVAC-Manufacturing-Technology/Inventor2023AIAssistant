@@ -200,10 +200,10 @@ namespace Inventor2023AIAssistant
                     string partName =
                         SysPath.GetFileName(partPath);
                     return
-                        "⚠️ No drawing found for:\n" +
-                        partName + "\n\n" +
-                        "Search log:\n" +
-                        _lastSearchLog;
+    "⚠️ No drawing found for:\n" +
+    partName + "\n" +
+    "Looked in same folder " +
+    "and parent folders.";
                 }
 
                 _app.Documents.Open(idwPath, true);
