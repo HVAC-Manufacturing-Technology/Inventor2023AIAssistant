@@ -123,7 +123,7 @@ namespace Inventor2023AIAssistant
             {
                 // Try to find custom template first
                 string templatePath = FindTemplate(
-                    "LANDSCAPE_SM_26_BC.idw");
+                    "LANDSCAPE_SM_26_BC_.idw");
 
                 if (string.IsNullOrWhiteSpace(templatePath))
                 {
@@ -168,6 +168,10 @@ namespace Inventor2023AIAssistant
                 // Common Inventor template locations
                 string[] searchRoots = new string[]
                 {
+                    
+ // Your custom template folder
+    @"I:LANDSCAPE_SM_26_BC_.idw\",
+
                     // Inventor default templates folder
                     System.IO.Path.Combine(
                         SysEnv.GetFolderPath(
