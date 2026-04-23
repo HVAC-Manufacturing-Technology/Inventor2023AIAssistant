@@ -66,6 +66,8 @@ namespace Inventor2023AIAssistant
         private Button _btnRunPrompt;
         private ListBox _lstLibrary;
         private Button _btnRunLibrary;
+        private MiterFlangeHandler _miterFlange;
+
 
         // ── Constructor ───────────────────────────────
         public AssistantPanel(
@@ -182,6 +184,10 @@ namespace Inventor2023AIAssistant
             _engraveHandler =
                 new EngraveHandler(
         _inventorApplication);
+            _miterFlange =
+    new MiterFlangeHandler(
+        _inventorApplication);
+
 
             BuildUI();
             InitializeConversation();
@@ -1496,14 +1502,21 @@ namespace Inventor2023AIAssistant
                         .TryHandleQuickMeasure(prompt);
                 if (response != null)
                 { Output(response); _chatHistory.LogAssistantMessage(response); return; }
+               
+  string miterResult =
+                    _miterFlange.TryHandle(prompt);
+                if (miterResult != null)
+                {
+                    Output(miterResult);
+                    _chatHistory
+                        .LogAssistantMessage(
+                            miterResult);
+                    return;
+                }
+
                 response =
-    _engraveHandler
-        .TryHandleEngrave(prompt);
-                if (response != null)
-                { Output(response); _chatHistory.LogAssistantMessage(response); return; }
-                response =
-                    _selectionEngine
-                        .TryHandleSelection(prompt);
+                    _engraveHandler
+                        .TryHandleEngrave(prompt);
                 if (response != null)
                 { Output(response); _chatHistory.LogAssistantMessage(response); return; }
 
