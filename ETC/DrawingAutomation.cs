@@ -115,30 +115,41 @@ namespace Inventor2023AIAssistant
             return null;
         }
 
-        // ─── New drawing ──────────────────────────────────────────────
+        // ── New drawing ───────────────────────────────
 
         private string NewDrawing()
         {
             try
             {
-                // Try to find custom template first
-                string templatePath = FindTemplate(
-                    "LANDSCAPE_SM_26_BC_.idw");
+                string templatePath = "";
 
-                if (string.IsNullOrWhiteSpace(templatePath))
-                {
-                    // Fall back to default drawing template
+                // Try hardcoded path first
+                string hardcoded =
+                    @"I:\IDW\LANDSCAPE_SM_26_BC_.idw";
+                if (System.IO.File.Exists(hardcoded))
+                    templatePath = hardcoded;
+
+                // Try FindTemplate if not found
+                if (string.IsNullOrWhiteSpace(
+                    templatePath))
+                    templatePath = FindTemplate(
+                        "LANDSCAPE_SM_26_BC_.idw");
+
+                // Fall back to default template
+                if (string.IsNullOrWhiteSpace(
+                    templatePath))
                     templatePath =
-                        _inventorApplication.FileManager
-                            .GetTemplateFile(
-                                DocumentTypeEnum
-                                    .kDrawingDocumentObject);
-                }
+                        _inventorApplication
+                        .FileManager
+                        .GetTemplateFile(
+                            DocumentTypeEnum
+                            .kDrawingDocumentObject);
 
                 Document doc =
-                    _inventorApplication.Documents.Add(
+                    _inventorApplication
+                    .Documents.Add(
                         DocumentTypeEnum
-                            .kDrawingDocumentObject,
+                        .kDrawingDocumentObject,
                         templatePath);
 
                 return
@@ -149,15 +160,17 @@ namespace Inventor2023AIAssistant
                     System.IO.Path.GetFileName(
                         templatePath) +
                     System.Environment.NewLine +
-                    "Make sure your Part or Assembly " +
-                    "is also open, then say:" +
+                    "Make sure your Part or " +
+                    "Assembly is also open, " +
+                    "then say:" +
                     System.Environment.NewLine +
                     "'add all views'";
             }
             catch (Exception ex)
             {
-                return "Failed to create drawing: " +
-                       ex.Message;
+                return
+                    "Failed to create drawing: " +
+                    ex.Message;
             }
         }
 
