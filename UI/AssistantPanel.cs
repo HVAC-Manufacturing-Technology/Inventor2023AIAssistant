@@ -47,6 +47,7 @@ namespace Inventor2023AIAssistant
         private OpenDrawingHandler _openDrawing;
         private ExportPackageHandler _exportPackage;
         private SheetMetalDefaultsDockableWindow _smDefaultsWindow;
+        private ParametersDockableWindow _parametersWindow;
 
         private List<string> _savedPrompts;
         private List<string> _promptHistory;
@@ -153,6 +154,12 @@ namespace Inventor2023AIAssistant
         _inventorApplication,
         "{D4E52C91-7F3A-4B22-9E8F-2A3B56CD7E81}");
             _smDefaultsWindow.Create();
+
+            _parametersWindow =
+    new ParametersDockableWindow(
+        _inventorApplication,
+        "{8D13F38E-71C3-4F3E-9AD4-PARAM5202601}");
+            _parametersWindow.Create();
 
             _designChecker =
     new DesignPackageChecker(
@@ -1383,6 +1390,31 @@ namespace Inventor2023AIAssistant
                     Output(result);
                     _chatHistory
                         .LogAssistantMessage(result);
+                    return;
+                }
+                if (n == "dock parameters" ||
+    n == "open parameters" ||
+    n == "show parameters" ||
+    n == "parameters panel")
+                {
+                    _parametersWindow.Show();
+                    Output("✅ Parameters panel opened.");
+                    return;
+                }
+
+                if (n == "close parameters" ||
+                    n == "close parameters panel")
+                {
+                    _parametersWindow.Hide();
+                    Output("Parameters panel closed.");
+                    return;
+                }
+
+                if (n == "toggle parameters" ||
+                    n == "toggle parameters panel")
+                {
+                    _parametersWindow.Toggle();
+                    Output("Parameters panel toggled.");
                     return;
                 }
                 if (n == "sheet metal defaults" ||

@@ -110,6 +110,10 @@
     <Compile Include="UI\MiterFlangeForm.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="UI\ParametersDockableWindow.cs" />
+    <Compile Include="UI\ParametersPanel.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
     <Compile Include="UI\PictureConverter.cs">
       <SubType>Component</SubType>
     </Compile>
