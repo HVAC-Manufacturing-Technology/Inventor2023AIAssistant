@@ -11,12 +11,63 @@ namespace Inventor2023AIAssistant
         private readonly Inventor.Application _app;
         private DataGridView _grid;
         private Button _btnRefresh;
+        private string _lastDocName = "";
 
         public ParametersPanel(
             Inventor.Application app)
         {
             _app = app;
             BuildUI();
+            HookEvents();
+        }
+
+        private void HookEvents()
+        {
+            var timer =
+                new System.Windows.Forms.Timer();
+            timer.Interval = 1500;
+            timer.Tick += (s, e) =>
+            {
+                try
+                {
+                    string current = "";
+                    try
+                    {
+                        Document doc = null;
+
+                        // Try ActiveEditDocument first
+                        // This changes when editing
+                        // a part inside an assembly
+                        try
+                        {
+                            doc = _app.ActiveEditDocument;
+                        }
+                        catch { }
+
+                        // Fallback to ActiveDocument
+                        if (doc == null)
+                        {
+                            try
+                            {
+                                doc = _app.ActiveDocument;
+                            }
+                            catch { }
+                        }
+
+                        if (doc != null)
+                            current = doc.FullFileName;
+                    }
+                    catch { }
+
+                    if (current != _lastDocName)
+                    {
+                        _lastDocName = current;
+                        LoadParameters();
+                    }
+                }
+                catch { }
+            };
+            timer.Start();
         }
 
         private void BuildUI()
@@ -25,7 +76,6 @@ namespace Inventor2023AIAssistant
             this.BackColor =
                 SysColor.FromArgb(45, 45, 48);
 
-            // ── Refresh Button ────────────────────
             _btnRefresh = new Button();
             _btnRefresh.Text = "Refresh";
             _btnRefresh.Dock = DockStyle.Top;
@@ -39,10 +89,8 @@ namespace Inventor2023AIAssistant
             _btnRefresh.Click +=
                 (s, e) => LoadParameters();
 
-            // ── DataGridView ──────────────────────
             _grid = new DataGridView();
             _grid.Dock = DockStyle.Fill;
-            _grid.ReadOnly = true;
             _grid.AllowUserToAddRows = false;
             _grid.AllowUserToDeleteRows = false;
             _grid.AllowUserToResizeRows = false;
@@ -63,9 +111,11 @@ namespace Inventor2023AIAssistant
                 SysColor.FromArgb(30, 30, 30);
             _grid.DefaultCellStyle.ForeColor =
                 SysColor.White;
-            _grid.DefaultCellStyle.SelectionBackColor =
+            _grid.DefaultCellStyle
+                .SelectionBackColor =
                 SysColor.FromArgb(0, 122, 204);
-            _grid.DefaultCellStyle.SelectionForeColor =
+            _grid.DefaultCellStyle
+                .SelectionForeColor =
                 SysColor.White;
             _grid.DefaultCellStyle.Font =
                 new SysFont("Segoe UI", 8.5f);
@@ -82,22 +132,35 @@ namespace Inventor2023AIAssistant
                 DataGridViewColumnHeadersHeightSizeMode
                 .AutoSize;
             _grid.EnableHeadersVisualStyles = false;
+            _grid.EditMode =
+                DataGridViewEditMode
+                .EditOnKeystrokeOrF2;
 
-            // ── Columns matching Inventor ─────────
+            // ── Columns ───────────────────────────
             _grid.Columns.Add(
                 "ParamName", "Parameter Name");
+            _grid.Columns["ParamName"]
+                .ReadOnly = true;
+
             _grid.Columns.Add(
-                "ConsumedBy", "Consumed By");
-            _grid.Columns.Add(
-                "Units", "Uni");
+                "Units", "Units");
+            _grid.Columns["Units"]
+                .ReadOnly = true;
+
             _grid.Columns.Add(
                 "Equation", "Equation");
+            _grid.Columns["Equation"]
+                .ReadOnly = false;
+
             _grid.Columns.Add(
                 "NominalValue", "Nominal");
-            _grid.Columns.Add(
-                "Tolerance", "Tol");
+            _grid.Columns["NominalValue"]
+                .ReadOnly = true;
+
             _grid.Columns.Add(
                 "ModelValue", "Model Value");
+            _grid.Columns["ModelValue"]
+                .ReadOnly = true;
 
             var keyCol =
                 new DataGridViewCheckBoxColumn();
@@ -115,31 +178,135 @@ namespace Inventor2023AIAssistant
 
             _grid.Columns.Add(
                 "Comment", "Comment");
+            _grid.Columns["Comment"]
+                .ReadOnly = false;
 
             // Column widths
             _grid.Columns["ParamName"]
-                .FillWeight = 15;
-            _grid.Columns["ConsumedBy"]
-                .FillWeight = 15;
+                .FillWeight = 20;
             _grid.Columns["Units"]
-                .FillWeight = 5;
+                .FillWeight = 8;
             _grid.Columns["Equation"]
-                .FillWeight = 15;
+                .FillWeight = 18;
             _grid.Columns["NominalValue"]
-                .FillWeight = 10;
-            _grid.Columns["Tolerance"]
-                .FillWeight = 5;
+                .FillWeight = 12;
             _grid.Columns["ModelValue"]
-                .FillWeight = 10;
+                .FillWeight = 12;
             _grid.Columns["Key"]
-                .FillWeight = 5;
+                .FillWeight = 6;
             _grid.Columns["Export"]
-                .FillWeight = 5;
+                .FillWeight = 6;
             _grid.Columns["Comment"]
-                .FillWeight = 15;
+                .FillWeight = 18;
+
+            _grid.CellEndEdit += Grid_CellEndEdit;
 
             this.Controls.Add(_grid);
             this.Controls.Add(_btnRefresh);
+        }
+
+        private void Grid_CellEndEdit(
+            object sender,
+            DataGridViewCellEventArgs e)
+        {
+            try
+            {
+                if (e.RowIndex < 0) return;
+
+                DataGridViewRow row =
+                    _grid.Rows[e.RowIndex];
+
+                if (row.Tag == null ||
+                    row.Tag.ToString() == "header")
+                    return;
+
+                string paramName =
+                    row.Cells["ParamName"].Value
+                    ?.ToString();
+
+                if (string.IsNullOrWhiteSpace(
+                    paramName))
+                    return;
+
+                string colName =
+                    _grid.Columns[e.ColumnIndex].Name;
+
+                Document doc = null;
+                try { doc = _app.ActiveDocument; }
+                catch { return; }
+                if (doc == null) return;
+
+                Parameters parms = null;
+                if (doc.DocumentType ==
+                    DocumentTypeEnum
+                    .kPartDocumentObject)
+                    parms =
+                        ((PartDocument)doc)
+                        .ComponentDefinition
+                        .Parameters;
+                else if (doc.DocumentType ==
+                    DocumentTypeEnum
+                    .kAssemblyDocumentObject)
+                    parms =
+                        ((AssemblyDocument)doc)
+                        .ComponentDefinition
+                        .Parameters;
+
+                if (parms == null) return;
+
+                Parameter param = null;
+                foreach (Parameter p in parms)
+                {
+                    if (p.Name == paramName)
+                    {
+                        param = p;
+                        break;
+                    }
+                }
+
+                if (param == null) return;
+
+                if (colName == "Equation")
+                {
+                    string newExpr =
+                        row.Cells["Equation"].Value
+                        ?.ToString();
+                    if (string.IsNullOrWhiteSpace(
+                        newExpr))
+                        return;
+
+                    try
+                    {
+                        param.Expression = newExpr;
+                        _app.ActiveDocument.Update();
+                        LoadParameters();
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show(
+                            "Failed to set " +
+                            "expression:\n" +
+                            ex.Message,
+                            "Parameter Error",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Warning);
+                        LoadParameters();
+                    }
+                }
+
+                if (colName == "Comment")
+                {
+                    string newComment =
+                        row.Cells["Comment"].Value
+                        ?.ToString() ?? "";
+                    try
+                    {
+                        param.Comment = newComment;
+                    }
+                    catch { }
+                }
+            }
+            catch { }
         }
 
         public void LoadParameters()
@@ -151,10 +318,17 @@ namespace Inventor2023AIAssistant
                 Document doc = null;
                 try
                 {
-                    doc = _app.ActiveDocument;
+                    doc = _app.ActiveEditDocument;
                 }
-                catch { return; }
-
+                catch { }
+                if (doc == null)
+                {
+                    try
+                    {
+                        doc = _app.ActiveDocument;
+                    }
+                    catch { return; }
+                }
                 if (doc == null) return;
 
                 Parameters parms = null;
@@ -176,23 +350,18 @@ namespace Inventor2023AIAssistant
 
                 if (parms == null) return;
 
-                // ── Add group header ──────────────
                 AddGroupHeader("Model Parameters");
-
-                // ── Model Parameters ──────────────
                 foreach (Parameter p in parms)
                 {
                     try
                     {
                         if (p is UserParameter)
                             continue;
-
                         AddParameterRow(p, false);
                     }
                     catch { }
                 }
 
-                // ── User Parameters ───────────────
                 bool hasUser = false;
                 foreach (Parameter p in parms)
                 {
@@ -228,29 +397,23 @@ namespace Inventor2023AIAssistant
                 new SysFont("Segoe UI", 9f,
                     System.Drawing.FontStyle.Bold);
             row.Height = 24;
+            row.ReadOnly = true;
+            row.Tag = "header";
         }
 
         private void AddParameterRow(
             Parameter p, bool isUser)
         {
             string name = "";
-            string consumedBy = "";
             string units = "";
             string equation = "";
             string nominal = "";
-            string tolerance = "";
             string modelVal = "";
             bool isKey = false;
             bool isExport = false;
             string comment = "";
 
             try { name = p.Name; }
-            catch { }
-
-            try
-            {
-                consumedBy = "";
-            }
             catch { }
 
             try { units = p.get_Units(); }
@@ -263,7 +426,8 @@ namespace Inventor2023AIAssistant
             {
                 double val =
                     (double)p.Value * 0.393701;
-                if (units == "in" || units == "in.")
+                if (units == "in" ||
+                    units == "in.")
                     nominal =
                         Math.Round(val, 4)
                         .ToString();
@@ -281,15 +445,10 @@ namespace Inventor2023AIAssistant
 
             try
             {
-                tolerance = p.Tolerance.ToString();
-            }
-            catch { }
-
-            try
-            {
                 double val =
                     (double)p.ModelValue * 0.393701;
-                if (units == "in" || units == "in.")
+                if (units == "in" ||
+                    units == "in.")
                     modelVal =
                         Math.Round(val, 4)
                         .ToString();
@@ -301,7 +460,8 @@ namespace Inventor2023AIAssistant
             {
                 try
                 {
-                    modelVal = p.ModelValue.ToString();
+                    modelVal =
+                        p.ModelValue.ToString();
                 }
                 catch { }
             }
@@ -319,15 +479,15 @@ namespace Inventor2023AIAssistant
             DataGridViewRow row = _grid.Rows[idx];
 
             row.Cells["ParamName"].Value = name;
-            row.Cells["ConsumedBy"].Value = consumedBy;
             row.Cells["Units"].Value = units;
             row.Cells["Equation"].Value = equation;
-            row.Cells["NominalValue"].Value = nominal;
-            row.Cells["Tolerance"].Value = tolerance;
+            row.Cells["NominalValue"].Value =
+                nominal;
             row.Cells["ModelValue"].Value = modelVal;
             row.Cells["Key"].Value = isKey;
             row.Cells["Export"].Value = isExport;
             row.Cells["Comment"].Value = comment;
+            row.Tag = "param";
 
             if (isUser)
             {
