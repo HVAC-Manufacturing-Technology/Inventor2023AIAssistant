@@ -3,9 +3,9 @@ using System;
 using System.Windows.Forms;
 using SysColor = System.Drawing.Color;
 using SysFont = System.Drawing.Font;
-using SysTextBox = System.Windows.Forms.TextBox;
 using SysSize = System.Drawing.Size;
 using SysPoint = System.Drawing.Point;
+using SysTextBox = System.Windows.Forms.TextBox;
 
 namespace Inventor2023AIAssistant
 {
@@ -23,6 +23,10 @@ namespace Inventor2023AIAssistant
         private ComboBox _cboUnits;
         private Button _btnAdd;
         private Button _btnDelete;
+
+        // Search controls
+        private Panel _searchPanel;
+        private SysTextBox _txtSearch;
 
         public ParametersPanel(
             Inventor.Application app)
@@ -83,6 +87,47 @@ namespace Inventor2023AIAssistant
             this.BackColor =
                 SysColor.FromArgb(45, 45, 48);
 
+            // ── Search Panel ──────────────────────
+            _searchPanel = new Panel();
+            _searchPanel.Dock = DockStyle.Top;
+            _searchPanel.Height = 30;
+            _searchPanel.BackColor =
+                SysColor.FromArgb(37, 37, 38);
+            _searchPanel.Padding =
+                new Padding(6, 4, 6, 4);
+
+            var lblSearch = new Label();
+            lblSearch.Text = "\U0001F50D";
+            lblSearch.ForeColor = SysColor.White;
+            lblSearch.Font =
+                new SysFont("Segoe UI", 9f);
+            lblSearch.Location =
+                new SysPoint(6, 5);
+            lblSearch.Size = new SysSize(22, 20);
+            _searchPanel.Controls.Add(lblSearch);
+
+            _txtSearch = new SysTextBox();
+            _txtSearch.Location =
+                new SysPoint(28, 3);
+            _txtSearch.Size = new SysSize(230, 22);
+            _txtSearch.BackColor =
+                SysColor.FromArgb(30, 30, 30);
+            _txtSearch.ForeColor = SysColor.White;
+            _txtSearch.BorderStyle =
+                BorderStyle.FixedSingle;
+            _txtSearch.Font =
+                new SysFont("Segoe UI", 8.5f);
+            _txtSearch.TextChanged +=
+                (s, e) => ApplySearchFilter();
+            _searchPanel.Controls.Add(_txtSearch);
+
+            // Make search box resize with panel
+            _searchPanel.Resize += (s, e) =>
+            {
+                _txtSearch.Width =
+                    _searchPanel.Width - 40;
+            };
+
             // ── Add Parameter Panel ───────────────
             _addPanel = new Panel();
             _addPanel.Dock = DockStyle.Top;
@@ -92,7 +137,6 @@ namespace Inventor2023AIAssistant
             _addPanel.Padding =
                 new Padding(6, 4, 6, 4);
 
-            // Row 1: Name and Value
             var lblName = new Label();
             lblName.Text = "Name:";
             lblName.ForeColor = SysColor.White;
@@ -139,7 +183,6 @@ namespace Inventor2023AIAssistant
                 new SysFont("Segoe UI", 8.5f);
             _addPanel.Controls.Add(_txtValue);
 
-            // Row 2: Units, Add, Delete
             var lblUnits = new Label();
             lblUnits.Text = "Units:";
             lblUnits.ForeColor = SysColor.White;
@@ -270,7 +313,7 @@ namespace Inventor2023AIAssistant
             _grid.Columns.Add(
                 "ParamName", "Parameter Name");
             _grid.Columns["ParamName"]
-                .ReadOnly = true;
+                .ReadOnly = false;
 
             _grid.Columns.Add(
                 "Units", "Units");
@@ -334,6 +377,49 @@ namespace Inventor2023AIAssistant
             this.Controls.Add(_grid);
             this.Controls.Add(_btnRefresh);
             this.Controls.Add(_addPanel);
+            this.Controls.Add(_searchPanel);
+        }
+
+        private void ApplySearchFilter()
+        {
+            string filter =
+                _txtSearch.Text.Trim()
+                .ToLowerInvariant();
+
+            foreach (DataGridViewRow row in
+                _grid.Rows)
+            {
+                if (row.Tag != null &&
+                    row.Tag.ToString() == "header")
+                {
+                    row.Visible = true;
+                    continue;
+                }
+
+                if (string.IsNullOrWhiteSpace(filter))
+                {
+                    row.Visible = true;
+                    continue;
+                }
+
+                string name =
+                    row.Cells["ParamName"].Value
+                    ?.ToString()?.ToLowerInvariant()
+                    ?? "";
+                string equation =
+                    row.Cells["Equation"].Value
+                    ?.ToString()?.ToLowerInvariant()
+                    ?? "";
+                string comment =
+                    row.Cells["Comment"].Value
+                    ?.ToString()?.ToLowerInvariant()
+                    ?? "";
+
+                row.Visible =
+                    name.Contains(filter) ||
+                    equation.Contains(filter) ||
+                    comment.Contains(filter);
+            }
         }
 
         private void BtnAdd_Click(
@@ -571,12 +657,13 @@ namespace Inventor2023AIAssistant
                     row.Tag.ToString() == "header")
                     return;
 
-                string paramName =
-                    row.Cells["ParamName"].Value
-                    ?.ToString();
+                // Get original name from Tag
+                string origName =
+                    row.Tag.ToString()
+                    .Replace("param:", "");
 
                 if (string.IsNullOrWhiteSpace(
-                    paramName))
+                    origName))
                     return;
 
                 string colName =
@@ -620,7 +707,7 @@ namespace Inventor2023AIAssistant
                 Parameter param = null;
                 foreach (Parameter p in parms)
                 {
-                    if (p.Name == paramName)
+                    if (p.Name == origName)
                     {
                         param = p;
                         break;
@@ -629,6 +716,44 @@ namespace Inventor2023AIAssistant
 
                 if (param == null) return;
 
+                // ── Rename Parameter ──────────────
+                if (colName == "ParamName")
+                {
+                    string newName =
+                        row.Cells["ParamName"].Value
+                        ?.ToString()?.Trim();
+
+                    if (string.IsNullOrWhiteSpace(
+                        newName) ||
+                        newName == origName)
+                        return;
+
+                    try
+                    {
+                        param.Name = newName;
+                        row.Tag =
+                            "param:" + newName;
+                        BeginInvoke(
+                            new Action(
+                                LoadParameters));
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show(
+                            "Failed to rename " +
+                            "parameter:\n" +
+                            ex.Message,
+                            "Rename Error",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Warning);
+                        BeginInvoke(
+                            new Action(
+                                LoadParameters));
+                    }
+                    return;
+                }
+
+                // ── Update Equation ───────────────
                 if (colName == "Equation")
                 {
                     string newExpr =
@@ -642,7 +767,9 @@ namespace Inventor2023AIAssistant
                     {
                         param.Expression = newExpr;
                         _app.ActiveDocument.Update();
-                        LoadParameters();
+                        BeginInvoke(
+                            new Action(
+                                LoadParameters));
                     }
                     catch (Exception ex)
                     {
@@ -653,10 +780,14 @@ namespace Inventor2023AIAssistant
                             "Parameter Error",
                             MessageBoxButtons.OK,
                             MessageBoxIcon.Warning);
-                        LoadParameters();
+                        BeginInvoke(
+                            new Action(
+                                LoadParameters));
                     }
+                    return;
                 }
 
+                // ── Update Comment ────────────────
                 if (colName == "Comment")
                 {
                     string newComment =
@@ -744,6 +875,11 @@ namespace Inventor2023AIAssistant
                         catch { }
                     }
                 }
+
+                // Apply search filter if active
+                if (!string.IsNullOrWhiteSpace(
+                    _txtSearch.Text))
+                    ApplySearchFilter();
             }
             catch { }
         }
@@ -851,7 +987,7 @@ namespace Inventor2023AIAssistant
             row.Cells["Key"].Value = isKey;
             row.Cells["Export"].Value = isExport;
             row.Cells["Comment"].Value = comment;
-            row.Tag = "param";
+            row.Tag = "param:" + name;
 
             if (isUser)
             {
