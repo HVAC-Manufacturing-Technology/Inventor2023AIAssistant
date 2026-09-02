@@ -62,6 +62,7 @@ namespace Inventor2023AIAssistant
         private System.Windows.Forms.TextBox _txtOutput;
         private System.Windows.Forms.TextBox _txtPrompt;
         private Button _btnSend;
+        private Button _btnProofread;
         private ListBox _lstSavedPrompts;
         private Button _btnDeletePrompt;
         private Button _btnRunPrompt;
@@ -303,10 +304,21 @@ namespace Inventor2023AIAssistant
             _btnSend.FlatStyle = FlatStyle.Flat;
             _btnSend.Click +=
                 (s, e) => _ = SendPromptAsync();
+            _btnProofread = new Button();
+            _btnProofread.Text = "Proofread Selected Text";
+            _btnProofread.TabStop = false;
+            _btnProofread.BackColor =
+                System.Drawing.Color.FromArgb(63, 63, 70);
+            _btnProofread.ForeColor =
+                System.Drawing.Color.White;
+            _btnProofread.FlatStyle = FlatStyle.Flat;
+            _btnProofread.Click +=
+                BtnProofread_Click;
 
             _tabChat.Controls.Add(_txtOutput);
             _tabChat.Controls.Add(_txtPrompt);
             _tabChat.Controls.Add(_btnSend);
+            _tabChat.Controls.Add(_btnProofread);
 
             // Vault Button Strip
             var vaultStrip = new VaultButtonStrip();
@@ -611,6 +623,17 @@ namespace Inventor2023AIAssistant
                     w - 70 - pad, sTop);
             _btnSend.Size =
                 new System.Drawing.Size(70, sh);
+            int proofreadWidth = Math.Max(
+    Math.Min(w - 90, 180),
+    110);
+
+            _btnProofread.Location =
+                new System.Drawing.Point(
+                    pad, sTop);
+
+            _btnProofread.Size =
+                new System.Drawing.Size(
+                    proofreadWidth, sh);
 
             // Vault strip sits at very bottom
             // via DockStyle.Bottom - no manual
@@ -662,7 +685,15 @@ namespace Inventor2023AIAssistant
             _btnRunLibrary.Size =
                 new System.Drawing.Size(80, btnH);
         }
-
+        private void BtnProofread_Click(
+    object sender,
+    EventArgs e)
+        {
+            AppendOutput(
+                "Proofread Selected Text button clicked." +
+                System.Environment.NewLine +
+                System.Environment.NewLine);
+        }
         // ── Key handling ──────────────────────────────
         private void TxtPrompt_KeyDown(
             object sender, KeyEventArgs e)
