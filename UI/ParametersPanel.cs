@@ -3,8 +3,8 @@ using System;
 using System.Windows.Forms;
 using SysColor = System.Drawing.Color;
 using SysFont = System.Drawing.Font;
-using SysSize = System.Drawing.Size;
 using SysPoint = System.Drawing.Point;
+using SysSize = System.Drawing.Size;
 using SysTextBox = System.Windows.Forms.TextBox;
 
 namespace Inventor2023AIAssistant
@@ -346,7 +346,7 @@ namespace Inventor2023AIAssistant
                 new DataGridViewCheckBoxColumn();
             exportCol.Name = "Export";
             exportCol.HeaderText = "Export";
-            exportCol.ReadOnly = true;
+            exportCol.ReadOnly = false;
             _grid.Columns.Add(exportCol);
 
             _grid.Columns.Add(
