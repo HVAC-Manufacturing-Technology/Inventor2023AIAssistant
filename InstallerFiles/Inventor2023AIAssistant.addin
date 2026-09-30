@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-16" standalone="no" ?>
+<Addin Type="Standard">
+  <ClientId>{C3B2E8D3-7E5F-4A88-9E9E-1F4A8A202301}</ClientId>
+  <ClassId>{C3B2E8D3-7E5F-4A88-9E9E-1F4A8A202301}</ClassId>
+  <DisplayName>Inventor 2023 AI Assistant</DisplayName>
+  <Description>Inventor 2023 AI Assistant v1.7.0 Beta 1</Description>
+  <Assembly>Inventor2023AIAssistant.dll</Assembly>
+  <UserUnLoadable>1</UserUnLoadable>
+  <UserInterfaceVersion>1</UserInterfaceVersion>
+  <LoadOnStartUp>1</LoadOnStartUp>
+</Addin>
