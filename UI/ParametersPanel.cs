@@ -1,6 +1,7 @@
 ﻿using Inventor;
 using System;
 using System.Windows.Forms;
+
 using SysColor = System.Drawing.Color;
 using SysFont = System.Drawing.Font;
 using SysPoint = System.Drawing.Point;
@@ -11,27 +12,45 @@ namespace Inventor2023AIAssistant
 {
     public class ParametersPanel : UserControl
     {
+        private sealed class InventorWindowWrapper :
+    IWin32Window
+        {
+            public InventorWindowWrapper(
+                IntPtr handle)
+            {
+                Handle = handle;
+            }
+
+            public IntPtr Handle
+            {
+                get;
+                private set;
+            }
+        }
         private readonly Inventor.Application _app;
+
         private DataGridView _grid;
         private Button _btnRefresh;
         private string _lastDocName = "";
 
-        // Add parameter controls
         private Panel _addPanel;
         private SysTextBox _txtName;
         private SysTextBox _txtValue;
         private ComboBox _cboUnits;
         private Button _btnAdd;
+        private Button _btnBulkAdd;
         private Button _btnDelete;
 
-        // Search controls
         private Panel _searchPanel;
         private SysTextBox _txtSearch;
+
+        private bool _loadingParameters;
 
         public ParametersPanel(
             Inventor.Application app)
         {
             _app = app;
+
             BuildUI();
             HookEvents();
         }
@@ -40,171 +59,293 @@ namespace Inventor2023AIAssistant
         {
             var timer =
                 new System.Windows.Forms.Timer();
+
             timer.Interval = 1500;
-            timer.Tick += (s, e) =>
-            {
-                try
+
+            timer.Tick +=
+                (s, e) =>
                 {
-                    string current = "";
                     try
                     {
-                        Document doc = null;
+                        string current = "";
+
                         try
                         {
-                            doc =
-                                _app.ActiveEditDocument;
-                        }
-                        catch { }
-                        if (doc == null)
-                        {
-                            try
-                            {
-                                doc =
-                                    _app.ActiveDocument;
-                            }
-                            catch { }
-                        }
-                        if (doc != null)
-                            current =
-                                doc.FullFileName;
-                    }
-                    catch { }
+                            Document doc =
+                                GetActiveDocument();
 
-                    if (current != _lastDocName)
-                    {
-                        _lastDocName = current;
-                        LoadParameters();
+                            if (doc != null)
+                            {
+                                current =
+                                    doc.FullFileName;
+                            }
+                        }
+                        catch
+                        {
+                        }
+
+                        if (current != _lastDocName)
+                        {
+                            _lastDocName =
+                                current;
+
+                            LoadParameters();
+                        }
                     }
-                }
-                catch { }
-            };
+                    catch
+                    {
+                    }
+                };
+
             timer.Start();
         }
 
         private void BuildUI()
         {
-            this.Dock = DockStyle.Fill;
-            this.BackColor =
+            Dock = DockStyle.Fill;
+
+            BackColor =
                 SysColor.FromArgb(45, 45, 48);
 
-            // ── Search Panel ──────────────────────
-            _searchPanel = new Panel();
-            _searchPanel.Dock = DockStyle.Top;
-            _searchPanel.Height = 30;
+            BuildSearchPanel();
+            BuildAddPanel();
+            BuildRefreshButton();
+            BuildParameterGrid();
+
+            Controls.Add(_grid);
+            Controls.Add(_btnRefresh);
+            Controls.Add(_addPanel);
+            Controls.Add(_searchPanel);
+        }
+
+        private void BuildSearchPanel()
+        {
+            _searchPanel =
+                new Panel();
+
+            _searchPanel.Dock =
+                DockStyle.Top;
+
+            _searchPanel.Height =
+                30;
+
             _searchPanel.BackColor =
                 SysColor.FromArgb(37, 37, 38);
+
             _searchPanel.Padding =
                 new Padding(6, 4, 6, 4);
 
-            var lblSearch = new Label();
-            lblSearch.Text = "\U0001F50D";
-            lblSearch.ForeColor = SysColor.White;
+            var lblSearch =
+                new Label();
+
+            lblSearch.Text =
+                "\U0001F50D";
+
+            lblSearch.ForeColor =
+                SysColor.White;
+
             lblSearch.Font =
                 new SysFont("Segoe UI", 9f);
+
             lblSearch.Location =
                 new SysPoint(6, 5);
-            lblSearch.Size = new SysSize(22, 20);
-            _searchPanel.Controls.Add(lblSearch);
 
-            _txtSearch = new SysTextBox();
+            lblSearch.Size =
+                new SysSize(22, 20);
+
+            _searchPanel.Controls.Add(
+                lblSearch);
+
+            _txtSearch =
+                new SysTextBox();
+
             _txtSearch.Location =
                 new SysPoint(28, 3);
-            _txtSearch.Size = new SysSize(230, 22);
+
+            _txtSearch.Size =
+                new SysSize(230, 22);
+
             _txtSearch.BackColor =
                 SysColor.FromArgb(30, 30, 30);
-            _txtSearch.ForeColor = SysColor.White;
+
+            _txtSearch.ForeColor =
+                SysColor.White;
+
             _txtSearch.BorderStyle =
                 BorderStyle.FixedSingle;
+
             _txtSearch.Font =
                 new SysFont("Segoe UI", 8.5f);
+
             _txtSearch.TextChanged +=
-                (s, e) => ApplySearchFilter();
-            _searchPanel.Controls.Add(_txtSearch);
+                (s, e) =>
+                    ApplySearchFilter();
 
-            // Make search box resize with panel
-            _searchPanel.Resize += (s, e) =>
-            {
-                _txtSearch.Width =
-                    _searchPanel.Width - 40;
-            };
+            _searchPanel.Controls.Add(
+                _txtSearch);
 
-            // ── Add Parameter Panel ───────────────
-            _addPanel = new Panel();
-            _addPanel.Dock = DockStyle.Top;
-            _addPanel.Height = 68;
+            _searchPanel.Resize +=
+                (s, e) =>
+                {
+                    _txtSearch.Width =
+                        Math.Max(
+                            50,
+                            _searchPanel.Width - 40);
+                };
+        }
+
+        private void BuildAddPanel()
+        {
+            _addPanel =
+                new Panel();
+
+            _addPanel.Dock =
+                DockStyle.Top;
+
+            _addPanel.Height =
+                98;
+
             _addPanel.BackColor =
                 SysColor.FromArgb(37, 37, 38);
+
             _addPanel.Padding =
                 new Padding(6, 4, 6, 4);
 
-            var lblName = new Label();
-            lblName.Text = "Name:";
-            lblName.ForeColor = SysColor.White;
+            var lblName =
+                new Label();
+
+            lblName.Text =
+                "Name:";
+
+            lblName.ForeColor =
+                SysColor.White;
+
             lblName.Font =
                 new SysFont("Segoe UI", 8f);
+
             lblName.Location =
                 new SysPoint(6, 6);
-            lblName.Size = new SysSize(40, 18);
-            _addPanel.Controls.Add(lblName);
 
-            _txtName = new SysTextBox();
+            lblName.Size =
+                new SysSize(40, 18);
+
+            _addPanel.Controls.Add(
+                lblName);
+
+            _txtName =
+                new SysTextBox();
+
             _txtName.Location =
                 new SysPoint(48, 4);
-            _txtName.Size = new SysSize(90, 22);
+
+            _txtName.Size =
+                new SysSize(90, 22);
+
             _txtName.BackColor =
                 SysColor.FromArgb(30, 30, 30);
-            _txtName.ForeColor = SysColor.White;
+
+            _txtName.ForeColor =
+                SysColor.White;
+
             _txtName.BorderStyle =
                 BorderStyle.FixedSingle;
+
             _txtName.Font =
                 new SysFont("Segoe UI", 8.5f);
-            _addPanel.Controls.Add(_txtName);
 
-            var lblValue = new Label();
-            lblValue.Text = "Value:";
-            lblValue.ForeColor = SysColor.White;
+            _addPanel.Controls.Add(
+                _txtName);
+
+            var lblValue =
+                new Label();
+
+            lblValue.Text =
+                "Value:";
+
+            lblValue.ForeColor =
+                SysColor.White;
+
             lblValue.Font =
                 new SysFont("Segoe UI", 8f);
+
             lblValue.Location =
                 new SysPoint(144, 6);
-            lblValue.Size = new SysSize(40, 18);
-            _addPanel.Controls.Add(lblValue);
 
-            _txtValue = new SysTextBox();
+            lblValue.Size =
+                new SysSize(40, 18);
+
+            _addPanel.Controls.Add(
+                lblValue);
+
+            _txtValue =
+                new SysTextBox();
+
             _txtValue.Location =
                 new SysPoint(186, 4);
-            _txtValue.Size = new SysSize(70, 22);
+
+            _txtValue.Size =
+                new SysSize(70, 22);
+
             _txtValue.BackColor =
                 SysColor.FromArgb(30, 30, 30);
-            _txtValue.ForeColor = SysColor.White;
+
+            _txtValue.ForeColor =
+                SysColor.White;
+
             _txtValue.BorderStyle =
                 BorderStyle.FixedSingle;
+
             _txtValue.Font =
                 new SysFont("Segoe UI", 8.5f);
-            _addPanel.Controls.Add(_txtValue);
 
-            var lblUnits = new Label();
-            lblUnits.Text = "Units:";
-            lblUnits.ForeColor = SysColor.White;
+            _addPanel.Controls.Add(
+                _txtValue);
+
+            var lblUnits =
+                new Label();
+
+            lblUnits.Text =
+                "Units:";
+
+            lblUnits.ForeColor =
+                SysColor.White;
+
             lblUnits.Font =
                 new SysFont("Segoe UI", 8f);
+
             lblUnits.Location =
                 new SysPoint(6, 34);
-            lblUnits.Size = new SysSize(40, 18);
-            _addPanel.Controls.Add(lblUnits);
 
-            _cboUnits = new ComboBox();
+            lblUnits.Size =
+                new SysSize(40, 18);
+
+            _addPanel.Controls.Add(
+                lblUnits);
+
+            _cboUnits =
+                new ComboBox();
+
             _cboUnits.Location =
                 new SysPoint(48, 32);
-            _cboUnits.Size = new SysSize(90, 22);
+
+            _cboUnits.Size =
+                new SysSize(90, 22);
+
             _cboUnits.DropDownStyle =
                 ComboBoxStyle.DropDownList;
+
             _cboUnits.BackColor =
                 SysColor.FromArgb(30, 30, 30);
-            _cboUnits.ForeColor = SysColor.White;
-            _cboUnits.FlatStyle = FlatStyle.Flat;
+
+            _cboUnits.ForeColor =
+                SysColor.White;
+
+            _cboUnits.FlatStyle =
+                FlatStyle.Flat;
+
             _cboUnits.Font =
                 new SysFont("Segoe UI", 8.5f);
+
             _cboUnits.Items.AddRange(
                 new object[]
                 {
@@ -216,261 +357,434 @@ namespace Inventor2023AIAssistant
                     "rad",
                     "ul"
                 });
-            _cboUnits.SelectedIndex = 0;
-            _addPanel.Controls.Add(_cboUnits);
 
-            _btnAdd = new Button();
-            _btnAdd.Text = "+ Add";
+            _cboUnits.SelectedIndex =
+                0;
+
+            _addPanel.Controls.Add(
+                _cboUnits);
+
+            _btnAdd =
+                new Button();
+
+            _btnAdd.Text =
+                "+ Add";
+
             _btnAdd.Location =
                 new SysPoint(144, 30);
-            _btnAdd.Size = new SysSize(55, 24);
+
+            _btnAdd.Size =
+                new SysSize(55, 24);
+
             _btnAdd.BackColor =
                 SysColor.FromArgb(0, 122, 204);
-            _btnAdd.ForeColor = SysColor.White;
-            _btnAdd.FlatStyle = FlatStyle.Flat;
+
+            _btnAdd.ForeColor =
+                SysColor.White;
+
+            _btnAdd.FlatStyle =
+                FlatStyle.Flat;
+
             _btnAdd.Font =
                 new SysFont("Segoe UI", 8f);
-            _btnAdd.Click += BtnAdd_Click;
-            _addPanel.Controls.Add(_btnAdd);
 
-            _btnDelete = new Button();
-            _btnDelete.Text = "Delete";
+            _btnAdd.Click +=
+                BtnAdd_Click;
+
+            _addPanel.Controls.Add(
+                _btnAdd);
+
+            _btnDelete =
+                new Button();
+
+            _btnDelete.Text =
+                "Delete";
+
             _btnDelete.Location =
                 new SysPoint(204, 30);
-            _btnDelete.Size = new SysSize(55, 24);
+
+            _btnDelete.Size =
+                new SysSize(55, 24);
+
             _btnDelete.BackColor =
                 SysColor.FromArgb(180, 40, 40);
-            _btnDelete.ForeColor = SysColor.White;
-            _btnDelete.FlatStyle = FlatStyle.Flat;
+
+            _btnDelete.ForeColor =
+                SysColor.White;
+
+            _btnDelete.FlatStyle =
+                FlatStyle.Flat;
+
             _btnDelete.Font =
                 new SysFont("Segoe UI", 8f);
-            _btnDelete.Click += BtnDelete_Click;
-            _addPanel.Controls.Add(_btnDelete);
 
-            // ── Refresh Button ────────────────────
-            _btnRefresh = new Button();
-            _btnRefresh.Text = "Refresh";
-            _btnRefresh.Dock = DockStyle.Top;
-            _btnRefresh.Height = 26;
+            _btnDelete.Click +=
+                BtnDelete_Click;
+
+            _addPanel.Controls.Add(
+                _btnDelete);
+
+            _btnBulkAdd =
+                new Button();
+
+            _btnBulkAdd.Text =
+                "Bulk Add Parameters";
+
+            _btnBulkAdd.Location =
+                new SysPoint(144, 58);
+
+            _btnBulkAdd.Size =
+                new SysSize(115, 24);
+
+            _btnBulkAdd.BackColor =
+                SysColor.FromArgb(0, 153, 102);
+
+            _btnBulkAdd.ForeColor =
+                SysColor.White;
+
+            _btnBulkAdd.FlatStyle =
+                FlatStyle.Flat;
+
+            _btnBulkAdd.Font =
+                new SysFont("Segoe UI", 8f);
+
+            _btnBulkAdd.Click +=
+                BtnBulkAdd_Click;
+
+            _addPanel.Controls.Add(
+                _btnBulkAdd);
+        }
+
+        private void BuildRefreshButton()
+        {
+            _btnRefresh =
+                new Button();
+
+            _btnRefresh.Text =
+                "Refresh";
+
+            _btnRefresh.Dock =
+                DockStyle.Top;
+
+            _btnRefresh.Height =
+                26;
+
             _btnRefresh.BackColor =
                 SysColor.FromArgb(0, 122, 204);
-            _btnRefresh.ForeColor = SysColor.White;
-            _btnRefresh.FlatStyle = FlatStyle.Flat;
+
+            _btnRefresh.ForeColor =
+                SysColor.White;
+
+            _btnRefresh.FlatStyle =
+                FlatStyle.Flat;
+
             _btnRefresh.Font =
                 new SysFont("Segoe UI", 8.5f);
-            _btnRefresh.Click +=
-                (s, e) => LoadParameters();
 
-            // ── DataGridView ──────────────────────
-            _grid = new DataGridView();
-            _grid.Dock = DockStyle.Fill;
-            _grid.AllowUserToAddRows = false;
-            _grid.AllowUserToDeleteRows = false;
-            _grid.AllowUserToResizeRows = false;
-            _grid.RowHeadersVisible = false;
+            _btnRefresh.Click +=
+                (s, e) =>
+                    LoadParameters();
+        }
+
+        private void BuildParameterGrid()
+        {
+            _grid =
+                new DataGridView();
+
+            _grid.Dock =
+                DockStyle.Fill;
+
+            _grid.AllowUserToAddRows =
+                false;
+
+            _grid.AllowUserToDeleteRows =
+                false;
+
+            _grid.AllowUserToResizeRows =
+                false;
+
+            _grid.RowHeadersVisible =
+                false;
+
             _grid.SelectionMode =
                 DataGridViewSelectionMode
-                .FullRowSelect;
-            _grid.MultiSelect = false;
-            _grid.BorderStyle = BorderStyle.None;
+                    .FullRowSelect;
+
+            _grid.MultiSelect =
+                false;
+
+            _grid.BorderStyle =
+                BorderStyle.None;
+
             _grid.AutoSizeColumnsMode =
                 DataGridViewAutoSizeColumnsMode
-                .Fill;
+                    .Fill;
+
             _grid.BackgroundColor =
                 SysColor.FromArgb(30, 30, 30);
+
             _grid.GridColor =
                 SysColor.FromArgb(60, 60, 60);
+
             _grid.DefaultCellStyle.BackColor =
                 SysColor.FromArgb(30, 30, 30);
+
             _grid.DefaultCellStyle.ForeColor =
                 SysColor.White;
+
             _grid.DefaultCellStyle
                 .SelectionBackColor =
                 SysColor.FromArgb(0, 122, 204);
+
             _grid.DefaultCellStyle
                 .SelectionForeColor =
                 SysColor.White;
+
             _grid.DefaultCellStyle.Font =
                 new SysFont("Segoe UI", 8.5f);
+
             _grid.ColumnHeadersDefaultCellStyle
                 .BackColor =
                 SysColor.FromArgb(45, 45, 48);
+
             _grid.ColumnHeadersDefaultCellStyle
-                .ForeColor = SysColor.White;
+                .ForeColor =
+                SysColor.White;
+
             _grid.ColumnHeadersDefaultCellStyle
                 .Font =
-                new SysFont("Segoe UI", 8.5f,
+                new SysFont(
+                    "Segoe UI",
+                    8.5f,
                     System.Drawing.FontStyle.Bold);
+
             _grid.ColumnHeadersHeightSizeMode =
                 DataGridViewColumnHeadersHeightSizeMode
-                .AutoSize;
-            _grid.EnableHeadersVisualStyles = false;
+                    .AutoSize;
+
+            _grid.EnableHeadersVisualStyles =
+                false;
+
             _grid.EditMode =
                 DataGridViewEditMode
-                .EditOnKeystrokeOrF2;
+                    .EditOnKeystrokeOrF2;
 
-            // ── Columns ───────────────────────────
-            _grid.Columns.Add(
-                "ParamName", "Parameter Name");
-            _grid.Columns["ParamName"]
-                .ReadOnly = false;
+            AddGridColumns();
 
-            _grid.Columns.Add(
-                "Units", "Units");
-            _grid.Columns["Units"]
-                .ReadOnly = true;
+            _grid.CellEndEdit +=
+                Grid_CellEndEdit;
 
-            _grid.Columns.Add(
-                "Equation", "Equation");
-            _grid.Columns["Equation"]
-                .ReadOnly = false;
+            _grid.CurrentCellDirtyStateChanged +=
+                Grid_CurrentCellDirtyStateChanged;
 
-            _grid.Columns.Add(
-                "NominalValue", "Nominal");
-            _grid.Columns["NominalValue"]
-                .ReadOnly = true;
-
-            _grid.Columns.Add(
-                "ModelValue", "Model Value");
-            _grid.Columns["ModelValue"]
-                .ReadOnly = true;
-
-            var keyCol =
-                new DataGridViewCheckBoxColumn();
-            keyCol.Name = "Key";
-            keyCol.HeaderText = "Key";
-            keyCol.ReadOnly = true;
-            _grid.Columns.Add(keyCol);
-
-            var exportCol =
-                new DataGridViewCheckBoxColumn();
-            exportCol.Name = "Export";
-            exportCol.HeaderText = "Export";
-            exportCol.ReadOnly = false;
-            _grid.Columns.Add(exportCol);
-
-            _grid.Columns.Add(
-                "Comment", "Comment");
-            _grid.Columns["Comment"]
-                .ReadOnly = false;
-
-            _grid.Columns["ParamName"]
-                .FillWeight = 20;
-            _grid.Columns["Units"]
-                .FillWeight = 8;
-            _grid.Columns["Equation"]
-                .FillWeight = 18;
-            _grid.Columns["NominalValue"]
-                .FillWeight = 12;
-            _grid.Columns["ModelValue"]
-                .FillWeight = 12;
-            _grid.Columns["Key"]
-                .FillWeight = 6;
-            _grid.Columns["Export"]
-                .FillWeight = 6;
-            _grid.Columns["Comment"]
-                .FillWeight = 18;
-
-            _grid.CellEndEdit += Grid_CellEndEdit;
-
-            // Add order matters for docking
-            this.Controls.Add(_grid);
-            this.Controls.Add(_btnRefresh);
-            this.Controls.Add(_addPanel);
-            this.Controls.Add(_searchPanel);
+            _grid.CellValueChanged +=
+                Grid_CellValueChanged;
         }
 
-        private void ApplySearchFilter()
+        private void AddGridColumns()
         {
-            string filter =
-                _txtSearch.Text.Trim()
-                .ToLowerInvariant();
+            _grid.Columns.Add(
+                "ParamName",
+                "Parameter Name");
 
-            foreach (DataGridViewRow row in
-                _grid.Rows)
+            _grid.Columns["ParamName"]
+                .ReadOnly =
+                false;
+
+            _grid.Columns.Add(
+                "Units",
+                "Units");
+
+            _grid.Columns["Units"]
+                .ReadOnly =
+                true;
+
+            _grid.Columns.Add(
+                "Equation",
+                "Equation");
+
+            _grid.Columns["Equation"]
+                .ReadOnly =
+                false;
+
+            _grid.Columns.Add(
+                "NominalValue",
+                "Nominal");
+
+            _grid.Columns["NominalValue"]
+                .ReadOnly =
+                true;
+
+            _grid.Columns.Add(
+                "ModelValue",
+                "Model Value");
+
+            _grid.Columns["ModelValue"]
+                .ReadOnly =
+                true;
+
+            var keyColumn =
+                new DataGridViewCheckBoxColumn();
+
+            keyColumn.Name =
+                "Key";
+
+            keyColumn.HeaderText =
+                "Key";
+
+            keyColumn.ReadOnly =
+                true;
+
+            _grid.Columns.Add(
+                keyColumn);
+
+            var exportColumn =
+                new DataGridViewCheckBoxColumn();
+
+            exportColumn.Name =
+                "Export";
+
+            exportColumn.HeaderText =
+                "Export";
+
+            exportColumn.ReadOnly =
+                false;
+
+            exportColumn.TrueValue =
+                true;
+
+            exportColumn.FalseValue =
+                false;
+
+            _grid.Columns.Add(
+                exportColumn);
+
+            _grid.Columns.Add(
+                "Comment",
+                "Comment");
+
+            _grid.Columns["Comment"]
+                .ReadOnly =
+                false;
+
+            _grid.Columns["ParamName"]
+                .FillWeight =
+                20;
+
+            _grid.Columns["Units"]
+                .FillWeight =
+                8;
+
+            _grid.Columns["Equation"]
+                .FillWeight =
+                18;
+
+            _grid.Columns["NominalValue"]
+                .FillWeight =
+                12;
+
+            _grid.Columns["ModelValue"]
+                .FillWeight =
+                12;
+
+            _grid.Columns["Key"]
+                .FillWeight =
+                6;
+
+            _grid.Columns["Export"]
+                .FillWeight =
+                6;
+
+            _grid.Columns["Comment"]
+                .FillWeight =
+                18;
+        }
+
+        private void BtnBulkAdd_Click(
+    object sender,
+    EventArgs e)
+        {
+            try
             {
-                if (row.Tag != null &&
-                    row.Tag.ToString() == "header")
+                IntPtr inventorHandle =
+                    new IntPtr(
+                        Convert.ToInt64(
+                            _app.MainFrameHWND));
+
+                InventorWindowWrapper owner =
+                    new InventorWindowWrapper(
+                        inventorHandle);
+
+                using (BulkParameterDialog dialog =
+                    new BulkParameterDialog(_app))
                 {
-                    row.Visible = true;
-                    continue;
+                    DialogResult result =
+                        dialog.ShowDialog(owner);
+
+                    if (result == DialogResult.OK
+                        && dialog.ParametersAdded)
+                    {
+                        LoadParameters();
+                    }
                 }
-
-                if (string.IsNullOrWhiteSpace(filter))
-                {
-                    row.Visible = true;
-                    continue;
-                }
-
-                string name =
-                    row.Cells["ParamName"].Value
-                    ?.ToString()?.ToLowerInvariant()
-                    ?? "";
-                string equation =
-                    row.Cells["Equation"].Value
-                    ?.ToString()?.ToLowerInvariant()
-                    ?? "";
-                string comment =
-                    row.Cells["Comment"].Value
-                    ?.ToString()?.ToLowerInvariant()
-                    ?? "";
-
-                row.Visible =
-                    name.Contains(filter) ||
-                    equation.Contains(filter) ||
-                    comment.Contains(filter);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    "Unable to open Bulk Add Parameters."
+                    + System.Environment.NewLine
+                    + System.Environment.NewLine
+                    + ex.Message,
+                    "Bulk Add Parameters",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
             }
         }
 
         private void BtnAdd_Click(
-            object sender, EventArgs e)
+            object sender,
+            EventArgs e)
         {
             try
             {
                 string name =
                     _txtName.Text.Trim();
+
                 string value =
                     _txtValue.Text.Trim();
+
                 string units =
                     _cboUnits.SelectedItem
-                    ?.ToString() ?? "in";
+                        ?.ToString()
+                    ?? "in";
 
-                if (string.IsNullOrWhiteSpace(name))
+                if (string.IsNullOrWhiteSpace(
+                    name))
                 {
                     MessageBox.Show(
-                        "Please enter a " +
-                        "parameter name.",
+                        "Please enter a parameter name.",
                         "Add Parameter",
                         MessageBoxButtons.OK,
                         MessageBoxIcon.Warning);
+
                     return;
                 }
 
-                if (string.IsNullOrWhiteSpace(value))
+                if (string.IsNullOrWhiteSpace(
+                    value))
                 {
                     MessageBox.Show(
-                        "Please enter a value " +
-                        "or expression.",
+                        "Please enter a value or expression.",
                         "Add Parameter",
                         MessageBoxButtons.OK,
                         MessageBoxIcon.Warning);
+
                     return;
                 }
 
-                Document doc = null;
-                try
-                {
-                    doc = _app.ActiveEditDocument;
-                }
-                catch { }
-                if (doc == null)
-                {
-                    try
-                    {
-                        doc = _app.ActiveDocument;
-                    }
-                    catch { }
-                }
+                Document doc =
+                    GetActiveDocument();
+
                 if (doc == null)
                 {
                     MessageBox.Show(
@@ -478,39 +792,35 @@ namespace Inventor2023AIAssistant
                         "Add Parameter",
                         MessageBoxButtons.OK,
                         MessageBoxIcon.Warning);
+
                     return;
                 }
 
-                Parameters parms = null;
-                if (doc.DocumentType ==
-                    DocumentTypeEnum
-                    .kPartDocumentObject)
-                    parms =
-                        ((PartDocument)doc)
-                        .ComponentDefinition
-                        .Parameters;
-                else if (doc.DocumentType ==
-                    DocumentTypeEnum
-                    .kAssemblyDocumentObject)
-                    parms =
-                        ((AssemblyDocument)doc)
-                        .ComponentDefinition
-                        .Parameters;
+                Parameters parameters =
+                    GetParameters(doc);
 
-                if (parms == null) return;
+                if (parameters == null)
+                {
+                    return;
+                }
 
-                UserParameters userParms =
-                    parms.UserParameters;
+                string expression =
+                    value;
 
-                string expr = value;
-                if (!value.Contains(" ") &&
-                    units != "ul" &&
-                    units != "deg" &&
-                    units != "rad")
-                    expr = value + " " + units;
+                if (!value.Contains(" ")
+                    && units != "ul"
+                    && units != "deg"
+                    && units != "rad")
+                {
+                    expression =
+                        value + " " + units;
+                }
 
-                userParms.AddByExpression(
-                    name, expr, units);
+                parameters.UserParameters
+                    .AddByExpression(
+                        name,
+                        expression,
+                        units);
 
                 _txtName.Clear();
                 _txtValue.Clear();
@@ -521,8 +831,9 @@ namespace Inventor2023AIAssistant
             catch (Exception ex)
             {
                 MessageBox.Show(
-                    "Failed to add parameter:\n" +
-                    ex.Message,
+                    "Failed to add parameter:"
+                    + System.Environment.NewLine
+                    + ex.Message,
                     "Add Parameter",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Error);
@@ -530,103 +841,92 @@ namespace Inventor2023AIAssistant
         }
 
         private void BtnDelete_Click(
-            object sender, EventArgs e)
+            object sender,
+            EventArgs e)
         {
             try
             {
                 if (_grid.SelectedRows.Count == 0)
                 {
                     MessageBox.Show(
-                        "Please select a " +
-                        "parameter to delete.",
+                        "Please select a parameter to delete.",
                         "Delete Parameter",
                         MessageBoxButtons.OK,
                         MessageBoxIcon.Warning);
+
                     return;
                 }
 
                 DataGridViewRow row =
                     _grid.SelectedRows[0];
 
-                if (row.Tag == null ||
-                    row.Tag.ToString() == "header")
+                if (row.Tag == null
+                    || row.Tag.ToString() == "header")
                 {
                     MessageBox.Show(
-                        "Cannot delete a " +
-                        "group header.",
+                        "Cannot delete a group header.",
                         "Delete Parameter",
                         MessageBoxButtons.OK,
                         MessageBoxIcon.Warning);
+
                     return;
                 }
 
-                string paramName =
-                    row.Cells["ParamName"].Value
-                    ?.ToString();
+                string parameterName =
+                    Convert.ToString(
+                        row.Cells["ParamName"].Value);
 
                 if (string.IsNullOrWhiteSpace(
-                    paramName))
+                    parameterName))
+                {
                     return;
+                }
 
-                DialogResult confirm =
+                DialogResult confirmation =
                     MessageBox.Show(
-                        "Delete parameter '" +
-                        paramName + "'?",
+                        "Delete parameter '"
+                        + parameterName
+                        + "'?",
                         "Confirm Delete",
                         MessageBoxButtons.YesNo,
                         MessageBoxIcon.Question);
 
-                if (confirm != DialogResult.Yes)
+                if (confirmation !=
+                    DialogResult.Yes)
+                {
                     return;
-
-                Document doc = null;
-                try
-                {
-                    doc = _app.ActiveEditDocument;
                 }
-                catch { }
-                if (doc == null)
+
+                Document doc =
+                    GetActiveDocument();
+
+                Parameters parameters =
+                    GetParameters(doc);
+
+                if (parameters == null)
                 {
-                    try
-                    {
-                        doc = _app.ActiveDocument;
-                    }
-                    catch { }
+                    return;
                 }
-                if (doc == null) return;
 
-                Parameters parms = null;
-                if (doc.DocumentType ==
-                    DocumentTypeEnum
-                    .kPartDocumentObject)
-                    parms =
-                        ((PartDocument)doc)
-                        .ComponentDefinition
-                        .Parameters;
-                else if (doc.DocumentType ==
-                    DocumentTypeEnum
-                    .kAssemblyDocumentObject)
-                    parms =
-                        ((AssemblyDocument)doc)
-                        .ComponentDefinition
-                        .Parameters;
-
-                if (parms == null) return;
-
-                foreach (Parameter p in parms)
+                foreach (
+                    Parameter parameter
+                    in parameters)
                 {
-                    if (p.Name == paramName &&
-                        p is UserParameter)
+                    if (parameter.Name ==
+                            parameterName
+                        && parameter
+                            is UserParameter)
                     {
-                        p.Delete();
+                        parameter.Delete();
+
                         LoadParameters();
+
                         return;
                     }
                 }
 
                 MessageBox.Show(
-                    "Only User Parameters " +
-                    "can be deleted.",
+                    "Only User Parameters can be deleted.",
                     "Delete Parameter",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Information);
@@ -634,11 +934,104 @@ namespace Inventor2023AIAssistant
             catch (Exception ex)
             {
                 MessageBox.Show(
-                    "Failed to delete:\n" +
-                    ex.Message,
+                    "Failed to delete:"
+                    + System.Environment.NewLine
+                    + ex.Message,
                     "Delete Parameter",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Error);
+            }
+        }
+
+        private void Grid_CurrentCellDirtyStateChanged(
+            object sender,
+            EventArgs e)
+        {
+            if (_grid.IsCurrentCellDirty
+                && _grid.CurrentCell
+                    is DataGridViewCheckBoxCell)
+            {
+                _grid.CommitEdit(
+                    DataGridViewDataErrorContexts
+                        .Commit);
+            }
+        }
+
+        private void Grid_CellValueChanged(
+            object sender,
+            DataGridViewCellEventArgs e)
+        {
+            if (_loadingParameters
+                || e.RowIndex < 0
+                || e.ColumnIndex < 0)
+            {
+                return;
+            }
+
+            if (_grid.Columns[e.ColumnIndex]
+                    .Name != "Export")
+            {
+                return;
+            }
+
+            try
+            {
+                DataGridViewRow row =
+                    _grid.Rows[e.RowIndex];
+
+                if (row.Tag == null
+                    || row.Tag.ToString() ==
+                        "header")
+                {
+                    return;
+                }
+
+                string parameterName =
+                    row.Tag.ToString()
+                        .Replace(
+                            "param:",
+                            "");
+
+                bool exportValue =
+                    Convert.ToBoolean(
+                        row.Cells["Export"]
+                            .Value
+                        ?? false);
+
+                Document doc =
+                    GetActiveDocument();
+
+                Parameters parameters =
+                    GetParameters(doc);
+
+                Parameter parameter =
+                    FindParameter(
+                        parameters,
+                        parameterName);
+
+                if (parameter == null)
+                {
+                    return;
+                }
+
+                parameter.ExposedAsProperty =
+                    exportValue;
+
+                doc.Update();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    "Failed to update Export:"
+                    + System.Environment.NewLine
+                    + ex.Message,
+                    "Parameter Export",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+
+                BeginInvoke(
+                    new Action(
+                        LoadParameters));
             }
         }
 
@@ -648,91 +1041,73 @@ namespace Inventor2023AIAssistant
         {
             try
             {
-                if (e.RowIndex < 0) return;
+                if (_loadingParameters
+                    || e.RowIndex < 0
+                    || e.ColumnIndex < 0)
+                {
+                    return;
+                }
 
                 DataGridViewRow row =
                     _grid.Rows[e.RowIndex];
 
-                if (row.Tag == null ||
-                    row.Tag.ToString() == "header")
+                if (row.Tag == null
+                    || row.Tag.ToString() ==
+                        "header")
+                {
                     return;
+                }
 
-                // Get original name from Tag
-                string origName =
+                string originalName =
                     row.Tag.ToString()
-                    .Replace("param:", "");
+                        .Replace(
+                            "param:",
+                            "");
 
-                if (string.IsNullOrWhiteSpace(
-                    origName))
-                    return;
-
-                string colName =
+                string columnName =
                     _grid.Columns[e.ColumnIndex]
-                    .Name;
+                        .Name;
 
-                Document doc = null;
-                try
+                Document doc =
+                    GetActiveDocument();
+
+                Parameters parameters =
+                    GetParameters(doc);
+
+                Parameter parameter =
+                    FindParameter(
+                        parameters,
+                        originalName);
+
+                if (parameter == null)
                 {
-                    doc = _app.ActiveEditDocument;
-                }
-                catch { }
-                if (doc == null)
-                {
-                    try
-                    {
-                        doc = _app.ActiveDocument;
-                    }
-                    catch { }
-                }
-                if (doc == null) return;
-
-                Parameters parms = null;
-                if (doc.DocumentType ==
-                    DocumentTypeEnum
-                    .kPartDocumentObject)
-                    parms =
-                        ((PartDocument)doc)
-                        .ComponentDefinition
-                        .Parameters;
-                else if (doc.DocumentType ==
-                    DocumentTypeEnum
-                    .kAssemblyDocumentObject)
-                    parms =
-                        ((AssemblyDocument)doc)
-                        .ComponentDefinition
-                        .Parameters;
-
-                if (parms == null) return;
-
-                Parameter param = null;
-                foreach (Parameter p in parms)
-                {
-                    if (p.Name == origName)
-                    {
-                        param = p;
-                        break;
-                    }
+                    return;
                 }
 
-                if (param == null) return;
-
-                // ── Rename Parameter ──────────────
-                if (colName == "ParamName")
+                if (columnName == "ParamName")
                 {
                     string newName =
-                        row.Cells["ParamName"].Value
-                        ?.ToString()?.Trim();
+                        Convert.ToString(
+                            row.Cells["ParamName"]
+                                .Value)
+                        ?.Trim();
 
                     if (string.IsNullOrWhiteSpace(
-                        newName) ||
-                        newName == origName)
+                            newName)
+                        || newName ==
+                            originalName)
+                    {
                         return;
+                    }
 
                     try
                     {
-                        param.Name = newName;
+                        parameter.Name =
+                            newName;
+
                         row.Tag =
                             "param:" + newName;
+
                         BeginInvoke(
                             new Action(
                                 LoadParameters));
@@ -740,33 +1115,41 @@ namespace Inventor2023AIAssistant
                     catch (Exception ex)
                     {
                         MessageBox.Show(
-                            "Failed to rename " +
-                            "parameter:\n" +
-                            ex.Message,
+                            "Failed to rename parameter:"
+                            + System.Environment.NewLine
+                            + ex.Message,
                             "Rename Error",
                             MessageBoxButtons.OK,
                             MessageBoxIcon.Warning);
+
                         BeginInvoke(
                             new Action(
                                 LoadParameters));
                     }
+
                     return;
                 }
 
-                // ── Update Equation ───────────────
-                if (colName == "Equation")
+                if (columnName == "Equation")
                 {
-                    string newExpr =
-                        row.Cells["Equation"].Value
-                        ?.ToString();
+                    string newExpression =
+                        Convert.ToString(
+                            row.Cells["Equation"]
+                                .Value);
+
                     if (string.IsNullOrWhiteSpace(
-                        newExpr))
+                            newExpression))
+                    {
                         return;
+                    }
 
                     try
                     {
-                        param.Expression = newExpr;
-                        _app.ActiveDocument.Update();
+                        parameter.Expression =
+                            newExpression;
+
+                        doc.Update();
+
                         BeginInvoke(
                             new Action(
                                 LoadParameters));
@@ -774,225 +1157,506 @@ namespace Inventor2023AIAssistant
                     catch (Exception ex)
                     {
                         MessageBox.Show(
-                            "Failed to set " +
-                            "expression:\n" +
-                            ex.Message,
+                            "Failed to set expression:"
+                            + System.Environment.NewLine
+                            + ex.Message,
                             "Parameter Error",
                             MessageBoxButtons.OK,
                             MessageBoxIcon.Warning);
+
                         BeginInvoke(
                             new Action(
                                 LoadParameters));
                     }
+
                     return;
                 }
 
-                // ── Update Comment ────────────────
-                if (colName == "Comment")
+                if (columnName == "Comment")
                 {
                     string newComment =
-                        row.Cells["Comment"].Value
-                        ?.ToString() ?? "";
+                        Convert.ToString(
+                            row.Cells["Comment"]
+                                .Value)
+                        ?? "";
+
                     try
                     {
-                        param.Comment = newComment;
+                        parameter.Comment =
+                            newComment;
                     }
-                    catch { }
+                    catch
+                    {
+                    }
                 }
             }
-            catch { }
+            catch
+            {
+            }
+        }
+
+        private Document GetActiveDocument()
+        {
+            Document doc =
+                null;
+
+            try
+            {
+                doc =
+                    _app.ActiveEditDocument;
+            }
+            catch
+            {
+            }
+
+            if (doc == null)
+            {
+                try
+                {
+                    doc =
+                        _app.ActiveDocument;
+                }
+                catch
+                {
+                }
+            }
+
+            return doc;
+        }
+
+        private Parameters GetParameters(
+            Document doc)
+        {
+            if (doc == null)
+            {
+                return null;
+            }
+
+            if (doc.DocumentType ==
+                DocumentTypeEnum
+                    .kPartDocumentObject)
+            {
+                return ((PartDocument)doc)
+                    .ComponentDefinition
+                    .Parameters;
+            }
+
+            if (doc.DocumentType ==
+                DocumentTypeEnum
+                    .kAssemblyDocumentObject)
+            {
+                return ((AssemblyDocument)doc)
+                    .ComponentDefinition
+                    .Parameters;
+            }
+
+            return null;
+        }
+
+        private Parameter FindParameter(
+            Parameters parameters,
+            string parameterName)
+        {
+            if (parameters == null
+                || string.IsNullOrWhiteSpace(
+                    parameterName))
+            {
+                return null;
+            }
+
+            foreach (
+                Parameter parameter
+                in parameters)
+            {
+                if (string.Equals(
+                    parameter.Name,
+                    parameterName,
+                    StringComparison.Ordinal))
+                {
+                    return parameter;
+                }
+            }
+
+            return null;
+        }
+
+        private void ApplySearchFilter()
+        {
+            string filter =
+                _txtSearch.Text
+                    .Trim()
+                    .ToLowerInvariant();
+
+            foreach (
+                DataGridViewRow row
+                in _grid.Rows)
+            {
+                if (row.Tag != null
+                    && row.Tag.ToString() ==
+                        "header")
+                {
+                    row.Visible =
+                        true;
+
+                    continue;
+                }
+
+                if (string.IsNullOrWhiteSpace(
+                    filter))
+                {
+                    row.Visible =
+                        true;
+
+                    continue;
+                }
+
+                string name =
+                    Convert.ToString(
+                        row.Cells["ParamName"]
+                            .Value)
+                    ?.ToLowerInvariant()
+                    ?? "";
+
+                string equation =
+                    Convert.ToString(
+                        row.Cells["Equation"]
+                            .Value)
+                    ?.ToLowerInvariant()
+                    ?? "";
+
+                string comment =
+                    Convert.ToString(
+                        row.Cells["Comment"]
+                            .Value)
+                    ?.ToLowerInvariant()
+                    ?? "";
+
+                row.Visible =
+                    name.Contains(filter)
+                    || equation.Contains(filter)
+                    || comment.Contains(filter);
+            }
         }
 
         public void LoadParameters()
         {
-            _grid.Rows.Clear();
+            _loadingParameters =
+                true;
 
             try
             {
-                Document doc = null;
-                try
+                _grid.Rows.Clear();
+
+                Document doc =
+                    GetActiveDocument();
+
+                Parameters parameters =
+                    GetParameters(doc);
+
+                if (parameters == null)
                 {
-                    doc = _app.ActiveEditDocument;
+                    return;
                 }
-                catch { }
-                if (doc == null)
+
+                AddGroupHeader(
+                    "Model Parameters");
+
+                foreach (
+                    Parameter parameter
+                    in parameters)
                 {
                     try
                     {
-                        doc = _app.ActiveDocument;
-                    }
-                    catch { return; }
-                }
-                if (doc == null) return;
-
-                Parameters parms = null;
-
-                if (doc.DocumentType ==
-                    DocumentTypeEnum
-                    .kPartDocumentObject)
-                    parms =
-                        ((PartDocument)doc)
-                        .ComponentDefinition
-                        .Parameters;
-                else if (doc.DocumentType ==
-                    DocumentTypeEnum
-                    .kAssemblyDocumentObject)
-                    parms =
-                        ((AssemblyDocument)doc)
-                        .ComponentDefinition
-                        .Parameters;
-
-                if (parms == null) return;
-
-                AddGroupHeader("Model Parameters");
-                foreach (Parameter p in parms)
-                {
-                    try
-                    {
-                        if (p is UserParameter)
+                        if (parameter
+                            is UserParameter)
+                        {
                             continue;
-                        AddParameterRow(p, false);
-                    }
-                    catch { }
-                }
+                        }
 
-                bool hasUser = false;
-                foreach (Parameter p in parms)
-                {
-                    if (p is UserParameter)
+                        AddParameterRow(
+                            parameter,
+                            false);
+                    }
+                    catch
                     {
-                        if (!hasUser)
-                        {
-                            AddGroupHeader(
-                                "User Parameters");
-                            hasUser = true;
-                        }
-                        try
-                        {
-                            AddParameterRow(
-                                p, true);
-                        }
-                        catch { }
                     }
                 }
 
-                // Apply search filter if active
+                bool hasUserParameters =
+                    false;
+
+                foreach (
+                    Parameter parameter
+                    in parameters)
+                {
+                    if (!(parameter
+                        is UserParameter))
+                    {
+                        continue;
+                    }
+
+                    if (!hasUserParameters)
+                    {
+                        AddGroupHeader(
+                            "User Parameters");
+
+                        hasUserParameters =
+                            true;
+                    }
+
+                    try
+                    {
+                        AddParameterRow(
+                            parameter,
+                            true);
+                    }
+                    catch
+                    {
+                    }
+                }
+
                 if (!string.IsNullOrWhiteSpace(
                     _txtSearch.Text))
+                {
                     ApplySearchFilter();
+                }
             }
-            catch { }
+            catch
+            {
+            }
+            finally
+            {
+                _loadingParameters =
+                    false;
+            }
         }
 
-        private void AddGroupHeader(string title)
+        private void AddGroupHeader(
+            string title)
         {
-            int idx = _grid.Rows.Add();
-            DataGridViewRow row = _grid.Rows[idx];
-            row.Cells["ParamName"].Value = title;
+            int index =
+                _grid.Rows.Add();
+
+            DataGridViewRow row =
+                _grid.Rows[index];
+
+            row.Cells["ParamName"].Value =
+                title;
+
             row.DefaultCellStyle.BackColor =
                 SysColor.FromArgb(0, 122, 204);
+
             row.DefaultCellStyle.ForeColor =
                 SysColor.White;
+
             row.DefaultCellStyle.Font =
-                new SysFont("Segoe UI", 9f,
+                new SysFont(
+                    "Segoe UI",
+                    9f,
                     System.Drawing.FontStyle.Bold);
-            row.Height = 24;
-            row.ReadOnly = true;
-            row.Tag = "header";
+
+            row.Height =
+                24;
+
+            row.ReadOnly =
+                true;
+
+            row.Tag =
+                "header";
         }
 
         private void AddParameterRow(
-            Parameter p, bool isUser)
+            Parameter parameter,
+            bool isUser)
         {
-            string name = "";
-            string units = "";
-            string equation = "";
-            string nominal = "";
-            string modelVal = "";
-            bool isKey = false;
-            bool isExport = false;
-            string comment = "";
+            string name =
+                "";
 
-            try { name = p.Name; }
-            catch { }
+            string units =
+                "";
 
-            try { units = p.get_Units(); }
-            catch { }
+            string equation =
+                "";
 
-            try { equation = p.Expression; }
-            catch { }
+            string nominal =
+                "";
+
+            string modelValue =
+                "";
+
+            bool isKey =
+                false;
+
+            bool isExport =
+                false;
+
+            string comment =
+                "";
 
             try
             {
-                double val =
-                    (double)p.Value * 0.393701;
-                if (units == "in" ||
-                    units == "in.")
+                name =
+                    parameter.Name;
+            }
+            catch
+            {
+            }
+
+            try
+            {
+                units =
+                    parameter.get_Units();
+            }
+            catch
+            {
+            }
+
+            try
+            {
+                equation =
+                    parameter.Expression;
+            }
+            catch
+            {
+            }
+
+            try
+            {
+                double value =
+                    Convert.ToDouble(
+                        parameter.Value);
+
+                if (units == "in"
+                    || units == "in.")
+                {
                     nominal =
-                        Math.Round(val, 4)
+                        Math.Round(
+                            value * 0.393701,
+                            4)
                         .ToString();
+                }
                 else
-                    nominal = p.Value.ToString();
+                {
+                    nominal =
+                        parameter.Value
+                            .ToString();
+                }
             }
             catch
             {
                 try
                 {
-                    nominal = p.Value.ToString();
+                    nominal =
+                        parameter.Value
+                            .ToString();
                 }
-                catch { }
+                catch
+                {
+                }
             }
 
             try
             {
-                double val =
-                    (double)p.ModelValue * 0.393701;
-                if (units == "in" ||
-                    units == "in.")
-                    modelVal =
-                        Math.Round(val, 4)
+                double value =
+                    Convert.ToDouble(
+                        parameter.ModelValue);
+
+                if (units == "in"
+                    || units == "in.")
+                {
+                    modelValue =
+                        Math.Round(
+                            value * 0.393701,
+                            4)
                         .ToString();
+                }
                 else
-                    modelVal =
-                        p.ModelValue.ToString();
+                {
+                    modelValue =
+                        parameter.ModelValue
+                            .ToString();
+                }
             }
             catch
             {
                 try
                 {
-                    modelVal =
-                        p.ModelValue.ToString();
+                    modelValue =
+                        parameter.ModelValue
+                            .ToString();
                 }
-                catch { }
+                catch
+                {
+                }
             }
 
-            try { isKey = p.IsKey; }
-            catch { }
+            try
+            {
+                isKey =
+                    parameter.IsKey;
+            }
+            catch
+            {
+            }
 
-            try { isExport = p.ExposedAsProperty; }
-            catch { }
+            try
+            {
+                isExport =
+                    parameter.ExposedAsProperty;
+            }
+            catch
+            {
+            }
 
-            try { comment = p.Comment; }
-            catch { }
+            try
+            {
+                comment =
+                    parameter.Comment;
+            }
+            catch
+            {
+            }
 
-            int idx = _grid.Rows.Add();
-            DataGridViewRow row = _grid.Rows[idx];
+            int index =
+                _grid.Rows.Add();
 
-            row.Cells["ParamName"].Value = name;
-            row.Cells["Units"].Value = units;
-            row.Cells["Equation"].Value = equation;
+            DataGridViewRow row =
+                _grid.Rows[index];
+
+            row.Cells["ParamName"].Value =
+                name;
+
+            row.Cells["Units"].Value =
+                units;
+
+            row.Cells["Equation"].Value =
+                equation;
+
             row.Cells["NominalValue"].Value =
                 nominal;
-            row.Cells["ModelValue"].Value = modelVal;
-            row.Cells["Key"].Value = isKey;
-            row.Cells["Export"].Value = isExport;
-            row.Cells["Comment"].Value = comment;
-            row.Tag = "param:" + name;
+
+            row.Cells["ModelValue"].Value =
+                modelValue;
+
+            row.Cells["Key"].Value =
+                isKey;
+
+            row.Cells["Export"].Value =
+                isExport;
+
+            row.Cells["Comment"].Value =
+                comment;
+
+            row.Tag =
+                "param:" + name;
 
             if (isUser)
             {
                 row.DefaultCellStyle.ForeColor =
-                    SysColor.FromArgb(86, 156, 214);
+                    SysColor.FromArgb(
+                        86,
+                        156,
+                        214);
             }
         }
     }
