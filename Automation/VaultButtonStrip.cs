@@ -11,24 +11,10 @@ namespace Inventor2023AIAssistant
         private Button _btnStatus;
         private Button _btnUndo;
 
-        // Text labels for wide mode
-        private const string TextCheckOut =
-            "🔓 Check Out";
-        private const string TextCheckIn =
-            "🔒 Check In";
-        private const string TextStatus =
-            "📋 Status";
-        private const string TextUndo =
-            "↩️ Undo";
-
-        // Icon only for narrow mode
-        private const string IconCheckOut = "🔓";
-        private const string IconCheckIn = "🔒";
-        private const string IconStatus = "📋";
-        private const string IconUndo = "↩️";
-
-        // Width threshold to switch to icons
-        private const int IconModeWidth = 300;
+        private const string TextCheckOut = "Check Out";
+        private const string TextCheckIn = "Check In";
+        private const string TextStatus = "Status";
+        private const string TextUndo = "Undo";
 
         public event EventHandler CheckOutClicked;
         public event EventHandler CheckInClicked;
@@ -102,25 +88,7 @@ namespace Inventor2023AIAssistant
 
         private void UpdateLayout()
         {
-            bool iconMode = Width < IconModeWidth;
             int btnWidth = Width / 4;
-
-            if (iconMode)
-            {
-                _btnCheckOut.Text = IconCheckOut;
-                _btnCheckIn.Text = IconCheckIn;
-                _btnStatus.Text = IconStatus;
-                _btnUndo.Text = IconUndo;
-                btnWidth = Width / 4;
-            }
-            else
-            {
-                _btnCheckOut.Text = TextCheckOut;
-                _btnCheckIn.Text = TextCheckIn;
-                _btnStatus.Text = TextStatus;
-                _btnUndo.Text = TextUndo;
-            }
-
             _btnCheckOut.Width = btnWidth;
             _btnCheckIn.Width = btnWidth;
             _btnStatus.Width = btnWidth;

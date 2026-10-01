@@ -1,6 +1,8 @@
 ﻿using Inventor;
 using System;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
+using System.Text;
 using System.Windows.Forms;
 
 using SysColor = System.Drawing.Color;
@@ -12,6 +14,69 @@ namespace Inventor2023AIAssistant
 {
     public class BulkParameterDialog : Form
     {
+        private sealed class DialogTheme
+        {
+            public SysColor FormBackground;
+            public SysColor InstructionBackground;
+            public SysColor InputBackground;
+            public SysColor ActionBackground;
+            public SysColor PrimaryText;
+            public SysColor SecondaryText;
+            public SysColor Border;
+            public SysColor Accent;
+            public SysColor AddAllBackground;
+            public SysColor CancelBackground;
+            public bool IsDark;
+        }
+
+        private static readonly DialogTheme DarkTheme =
+            new DialogTheme
+            {
+                FormBackground = SysColor.FromArgb(45, 45, 48),
+                InstructionBackground = SysColor.FromArgb(45, 45, 48),
+                InputBackground = SysColor.FromArgb(30, 30, 30),
+                ActionBackground = SysColor.FromArgb(37, 37, 38),
+                PrimaryText = SysColor.FromArgb(240, 240, 240),
+                SecondaryText = SysColor.FromArgb(200, 200, 200),
+                Border = SysColor.FromArgb(80, 80, 80),
+                Accent = SysColor.FromArgb(0, 122, 204),
+                AddAllBackground = SysColor.FromArgb(0, 153, 102),
+                CancelBackground = SysColor.FromArgb(70, 70, 72),
+                IsDark = true
+            };
+
+        private static readonly DialogTheme LightTheme =
+            new DialogTheme
+            {
+                FormBackground = SysColor.FromArgb(240, 240, 240),
+                InstructionBackground = SysColor.FromArgb(240, 240, 240),
+                InputBackground = SysColor.White,
+                ActionBackground = SysColor.FromArgb(225, 225, 225),
+                PrimaryText = SysColor.FromArgb(32, 32, 32),
+                SecondaryText = SysColor.FromArgb(80, 80, 80),
+                Border = SysColor.FromArgb(160, 160, 160),
+                Accent = SysColor.FromArgb(0, 122, 204),
+                AddAllBackground = SysColor.FromArgb(0, 153, 102),
+                CancelBackground = SysColor.FromArgb(220, 220, 220),
+                IsDark = false
+            };
+
+        private const int DWMWA_USE_IMMERSIVE_DARK_MODE =
+            20;
+
+        [DllImport("dwmapi.dll", PreserveSig = true)]
+        private static extern int DwmSetWindowAttribute(
+            IntPtr hwnd,
+            int attribute,
+            ref int value,
+            int valueSize);
+
+        [DllImport("uxtheme.dll", CharSet = CharSet.Unicode)]
+        private static extern int SetWindowTheme(
+            IntPtr hwnd,
+            string appName,
+            string idList);
+
         private sealed class InventorInputTextBox :
             System.Windows.Forms.TextBox
         {
@@ -61,6 +126,7 @@ namespace Inventor2023AIAssistant
         }
 
         private readonly Inventor.Application _app;
+        private readonly DialogTheme _theme;
 
         private InventorInputTextBox _txtInput;
         private Button _btnAddAll;
@@ -104,14 +170,56 @@ namespace Inventor2023AIAssistant
                 get;
                 set;
             }
+
+            public bool Key
+            {
+                get;
+                set;
+            }
+
+            public string Comment
+            {
+                get;
+                set;
+            }
         }
 
         public BulkParameterDialog(
             Inventor.Application app)
         {
             _app = app;
+            _theme = ResolveTheme(app);
 
             BuildUI();
+        }
+
+        private DialogTheme ResolveTheme(
+            Inventor.Application app)
+        {
+            try
+            {
+                string activeThemeName =
+                    app.ThemeManager.ActiveTheme.Name;
+
+                if (activeThemeName.IndexOf(
+                    "light",
+                    StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    return LightTheme;
+                }
+
+                if (activeThemeName.IndexOf(
+                    "dark",
+                    StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    return DarkTheme;
+                }
+            }
+            catch
+            {
+            }
+
+            return DarkTheme;
         }
 
         private void BuildUI()
@@ -128,11 +236,14 @@ namespace Inventor2023AIAssistant
             MinimumSize =
                 new SysSize(600, 420);
 
+            FormBorderStyle =
+                FormBorderStyle.Sizable;
+
             BackColor =
-                SysColor.FromArgb(45, 45, 48);
+                _theme.FormBackground;
 
             ForeColor =
-                SysColor.White;
+                _theme.PrimaryText;
 
             Font =
                 new SysFont("Segoe UI", 9f);
@@ -159,28 +270,66 @@ namespace Inventor2023AIAssistant
             _lblInstructions =
                 new Label();
 
-            _lblInstructions.Dock =
+            Panel instructionPanel =
+                new Panel();
+
+            instructionPanel.Dock =
                 DockStyle.Top;
 
-            _lblInstructions.Height =
-                95;
+            instructionPanel.Height =
+                145;
+
+            instructionPanel.BackColor =
+                _theme.InstructionBackground;
+
+            _lblInstructions.Dock =
+                DockStyle.Fill;
 
             _lblInstructions.Padding =
-                new Padding(10, 10, 10, 6);
+                new Padding(12, 10, 12, 6);
 
             _lblInstructions.ForeColor =
-                SysColor.White;
+                _theme.SecondaryText;
+
+            _lblInstructions.BackColor =
+                _theme.InstructionBackground;
+
+            _lblInstructions.Font =
+                new SysFont("Segoe UI", 9f);
 
             _lblInstructions.Text =
-                "Paste tab-separated or comma-separated parameters below."
+                "Paste comma-separated or tab-separated parameters below."
                 + SysEnvironment.NewLine
                 + SysEnvironment.NewLine
-                + "Format: Name, Expression, Units, Export"
+                + "Format:"
                 + SysEnvironment.NewLine
-                + "Example: PanelWidth,24 in,in,true";
+                + "Name, Unit/Type, Equation, Key, Export, Comment"
+                + SysEnvironment.NewLine
+                + SysEnvironment.NewLine
+                + "Example:"
+                + SysEnvironment.NewLine
+                + "PanelWidth, in, 24 in, true, true, Overall panel width";
+
+            Panel separator =
+                new Panel();
+
+            separator.Dock =
+                DockStyle.Bottom;
+
+            separator.Height =
+                2;
+
+            separator.BackColor =
+                _theme.Accent;
+
+            instructionPanel.Controls.Add(
+                _lblInstructions);
+
+            instructionPanel.Controls.Add(
+                separator);
 
             Controls.Add(
-                _lblInstructions);
+                instructionPanel);
         }
 
         private void BuildButtons()
@@ -192,82 +341,112 @@ namespace Inventor2023AIAssistant
                 DockStyle.Bottom;
 
             buttonPanel.Height =
-                50;
-
-            buttonPanel.Padding =
-                new Padding(10, 8, 10, 8);
+                58;
 
             buttonPanel.BackColor =
-                SysColor.FromArgb(37, 37, 38);
+                _theme.ActionBackground;
 
             Controls.Add(
                 buttonPanel);
 
+            _btnAddAll =
+                CreateButton("Add All", 100, BtnAddAll_Click);
+
             _btnCancel =
-                new Button();
-
-            _btnCancel.Text =
-                "Cancel";
-
-            _btnCancel.Width =
-                90;
-
-            _btnCancel.Height =
-                30;
-
-            _btnCancel.Dock =
-                DockStyle.Right;
+                CreateButton("Cancel", 85, null);
 
             _btnCancel.DialogResult =
                 DialogResult.Cancel;
 
+            _btnAddAll.BackColor =
+                _theme.AddAllBackground;
+
             _btnCancel.BackColor =
-                SysColor.FromArgb(80, 80, 80);
+                _theme.CancelBackground;
+
+            _btnAddAll.ForeColor =
+                _theme.PrimaryText;
 
             _btnCancel.ForeColor =
-                SysColor.White;
+                _theme.PrimaryText;
 
-            _btnCancel.FlatStyle =
-                FlatStyle.Flat;
+            _btnAddAll.FlatAppearance.BorderColor =
+                _theme.Border;
 
-            _btnCancel.TabIndex =
-                2;
-
-            buttonPanel.Controls.Add(
-                _btnCancel);
-
-            _btnAddAll =
-                new Button();
-
-            _btnAddAll.Text =
-                "Add All";
-
-            _btnAddAll.Width =
-                110;
+            _btnCancel.FlatAppearance.BorderColor =
+                _theme.Border;
 
             _btnAddAll.Height =
                 30;
 
-            _btnAddAll.Dock =
-                DockStyle.Right;
+            _btnCancel.Height =
+                30;
 
-            _btnAddAll.BackColor =
-                SysColor.FromArgb(0, 153, 102);
+            _btnAddAll.Margin =
+                new Padding(8, 0, 0, 0);
 
-            _btnAddAll.ForeColor =
-                SysColor.White;
+            _btnCancel.Margin =
+                new Padding(8, 0, 0, 0);
 
-            _btnAddAll.FlatStyle =
-                FlatStyle.Flat;
+            FlowLayoutPanel buttonFlow =
+                new FlowLayoutPanel();
 
-            _btnAddAll.TabIndex =
+            buttonFlow.Dock =
+                DockStyle.Fill;
+
+            buttonFlow.FlowDirection =
+                FlowDirection.RightToLeft;
+
+            buttonFlow.WrapContents =
+                false;
+
+            buttonFlow.Padding =
+                new Padding(12, 13, 12, 0);
+
+            buttonFlow.BackColor =
+                _theme.ActionBackground;
+
+            Panel topBorder =
+                new Panel();
+
+            topBorder.Dock =
+                DockStyle.Top;
+
+            topBorder.Height =
                 1;
 
-            _btnAddAll.Click +=
-                BtnAddAll_Click;
+            topBorder.BackColor =
+                _theme.Border;
 
-            buttonPanel.Controls.Add(
-                _btnAddAll);
+            buttonFlow.Controls.Add(_btnCancel);
+            buttonFlow.Controls.Add(_btnAddAll);
+            buttonPanel.Controls.Add(buttonFlow);
+            buttonPanel.Controls.Add(topBorder);
+        }
+
+        private Button CreateButton(
+            string text,
+            int width,
+            EventHandler click)
+        {
+            Button button =
+                new Button();
+
+            button.Text = text;
+            button.Width = width;
+            button.Height = 30;
+            button.BackColor = _theme.CancelBackground;
+            button.ForeColor = _theme.PrimaryText;
+            button.FlatStyle = FlatStyle.Flat;
+            button.Font = new SysFont("Segoe UI", 8.5f);
+            button.FlatAppearance.BorderColor = _theme.Border;
+
+            if (click != null)
+            {
+                button.Click += click;
+            }
+
+            return button;
         }
 
         private void BuildInputBox()
@@ -308,17 +487,17 @@ namespace Inventor2023AIAssistant
             _txtInput.TabIndex =
                 0;
 
-            _txtInput.BorderStyle =
-                BorderStyle.FixedSingle;
-
-            _txtInput.BackColor =
-                SysColor.FromArgb(30, 30, 30);
-
-            _txtInput.ForeColor =
-                SysColor.White;
-
             _txtInput.Font =
                 new SysFont("Consolas", 10f);
+
+            _txtInput.BackColor =
+                _theme.InputBackground;
+
+            _txtInput.ForeColor =
+                _theme.PrimaryText;
+
+            _txtInput.BorderStyle =
+                BorderStyle.None;
 
             _txtInput.Text =
                 string.Empty;
@@ -329,19 +508,93 @@ namespace Inventor2023AIAssistant
             _txtInput.MouseDown +=
                 TxtInput_MouseDown;
 
-            Controls.Add(
+            Panel inputBorder =
+                new Panel();
+
+            inputBorder.Dock =
+                DockStyle.Fill;
+
+            inputBorder.Padding =
+                new Padding(1);
+
+            inputBorder.BackColor =
+                _theme.Border;
+
+            inputBorder.Controls.Add(
                 _txtInput);
 
-            _txtInput.BringToFront();
+            Controls.Add(
+                inputBorder);
+
+            inputBorder.BringToFront();
         }
 
         private void BulkParameterDialog_Shown(
             object sender,
             EventArgs e)
         {
+            ApplyDarkTitleBar();
+            ApplyDarkInputTheme();
+
             BeginInvoke(
                 new Action(
                     FocusInputBox));
+        }
+
+        private void ApplyDarkTitleBar()
+        {
+            if (!_theme.IsDark || !IsHandleCreated)
+            {
+                return;
+            }
+
+            try
+            {
+                int enabled = 1;
+                int result = DwmSetWindowAttribute(
+                    Handle,
+                    DWMWA_USE_IMMERSIVE_DARK_MODE,
+                    ref enabled,
+                    sizeof(int));
+
+                if (result != 0)
+                {
+                    DwmSetWindowAttribute(
+                        Handle,
+                        19,
+                        ref enabled,
+                        sizeof(int));
+                }
+            }
+            catch
+            {
+            }
+        }
+
+        private void ApplyDarkInputTheme()
+        {
+            if (!_theme.IsDark
+                || _txtInput == null
+                || !_txtInput.IsHandleCreated)
+            {
+                return;
+            }
+
+            try
+            {
+                int result = SetWindowTheme(
+                    _txtInput.Handle,
+                    "DarkMode_Explorer",
+                    null);
+
+                if (result < 0)
+                {
+                    return;
+                }
+            }
+            catch
+            {
+            }
         }
 
         private void BulkParameterDialog_Activated(
@@ -389,9 +642,7 @@ namespace Inventor2023AIAssistant
                 _txtInput;
 
             _txtInput.Select();
-
             _txtInput.Focus();
-
             _txtInput.SelectionStart =
                 _txtInput.TextLength;
 
@@ -422,8 +673,7 @@ namespace Inventor2023AIAssistant
                 }
 
                 List<BulkParameterRow> rows =
-                    ParseRows(
-                        _txtInput.Text);
+                    ParseRows(_txtInput.Text);
 
                 if (rows.Count == 0)
                 {
@@ -532,6 +782,12 @@ namespace Inventor2023AIAssistant
 
                         newParameter.ExposedAsProperty =
                             row.Export;
+
+                        newParameter.IsKey =
+                            row.Key;
+
+                        newParameter.Comment =
+                            row.Comment;
 
                         existingNames.Add(
                             normalizedName);
@@ -700,12 +956,11 @@ namespace Inventor2023AIAssistant
                     "\r",
                     "\n");
 
-            normalizedInput =
-                RepairJoinedRows(
-                    normalizedInput);
-
             string[] lines =
                 normalizedInput.Split('\n');
+
+            int format =
+                0;
 
             for (
                 int index = 0;
@@ -727,55 +982,51 @@ namespace Inventor2023AIAssistant
                         : ',';
 
                 string[] values =
-                    line.Split(delimiter);
+                    SplitDelimitedLine(line, delimiter);
 
-                for (
-                    int valueIndex = 0;
-                    valueIndex < values.Length;
-                    valueIndex++)
+                if (IsLegacyHeader(values))
                 {
-                    values[valueIndex] =
-                        values[valueIndex].Trim();
-                }
-
-                bool isHeaderRow =
-                    values.Length >= 3
-                    && values[0].Equals(
-                        "Name",
-                        StringComparison.OrdinalIgnoreCase)
-                    && values[1].Equals(
-                        "Expression",
-                        StringComparison.OrdinalIgnoreCase)
-                    && values[2].Equals(
-                        "Units",
-                        StringComparison.OrdinalIgnoreCase);
-
-                if (isHeaderRow)
-                {
+                    format = 4;
                     continue;
                 }
 
-                if (values.Length < 3)
+                if (IsNewFormatHeader(values))
                 {
-                    throw new Exception(
-                        "Line "
-                        + (index + 1)
-                        + " does not contain Name, Expression, and Units.");
+                    format = 6;
+                    continue;
                 }
 
-                string name =
-                    values[0];
+                if (format == 0)
+                {
+                    if (values.Length == 4)
+                    {
+                        format = 4;
+                    }
+                    else if (values.Length == 6)
+                    {
+                        format = 6;
+                    }
+                    else
+                    {
+                        throw new Exception(
+                            "Line " + (index + 1)
+                            + " must contain either four legacy columns or six parameter columns.");
+                    }
+                }
 
-                string expression =
-                    values[1];
+                if (values.Length != format)
+                {
+                    throw new Exception(
+                        "Line " + (index + 1)
+                        + " does not match the selected " + format + "-column format.");
+                }
 
-                string units =
-                    values[2];
-
-                string exportText =
-                    values.Length >= 4
-                        ? values[3]
-                        : "false";
+                string name = values[0];
+                string units = format == 4 ? values[2] : values[1];
+                string expression = format == 4 ? values[1] : values[2];
+                string keyText = format == 4 ? "false" : values[3];
+                string exportText = format == 4 ? values[3] : values[4];
+                string comment = format == 4 ? string.Empty : values[5];
 
                 if (string.IsNullOrWhiteSpace(
                     name))
@@ -792,7 +1043,7 @@ namespace Inventor2023AIAssistant
                     throw new Exception(
                         "Line "
                         + (index + 1)
-                        + " has no expression.");
+                        + " has no equation.");
                 }
 
                 if (string.IsNullOrWhiteSpace(
@@ -819,49 +1070,154 @@ namespace Inventor2023AIAssistant
                         Units =
                             units,
 
+                        Key =
+                            ParseBoolean(keyText),
+
                         Export =
                             ParseBoolean(
-                                exportText)
+                                exportText),
+
+                        Comment =
+                            comment
                     });
             }
 
             return rows;
         }
 
-        private string RepairJoinedRows(
-            string input)
+        private string[] SplitDelimitedLine(
+            string line,
+            char delimiter)
         {
-            return input
-                .Replace(
-                    "falseName,",
-                    "false"
-                    + SysEnvironment.NewLine
-                    + "Name,")
-                .Replace(
-                    "trueName,",
-                    "true"
-                    + SysEnvironment.NewLine
-                    + "Name,")
-                .Replace(
-                    "falsName,",
-                    "false"
-                    + SysEnvironment.NewLine
-                    + "Name,")
-                .Replace(
-                    "falseName\t",
-                    "false"
-                    + SysEnvironment.NewLine
-                    + "Name\t")
-                .Replace(
-                    "trueName\t",
-                    "true"
-                    + SysEnvironment.NewLine
-                    + "Name\t")
-                .Replace(
-                    "falsName\t",
-                    "false"
-                    + SysEnvironment.NewLine
-                    + "Name\t");
+            List<string> values =
+                new List<string>();
+
+            StringBuilder value =
+                new StringBuilder();
+
+            bool inQuotes =
+                false;
+
+            for (int index = 0; index < line.Length; index++)
+            {
+                char current = line[index];
+
+                if (current == '"')
+                {
+                    if (inQuotes
+                        && index + 1 < line.Length
+                        && line[index + 1] == '"')
+                    {
+                        value.Append('"');
+                        index++;
+                    }
+                    else
+                    {
+                        inQuotes = !inQuotes;
+                    }
+                }
+                else if (current == delimiter && !inQuotes)
+                {
+                    values.Add(value.ToString().Trim());
+                    value.Length = 0;
+                }
+                else
+                {
+                    value.Append(current);
+                }
+            }
+
+            if (inQuotes)
+            {
+                throw new Exception(
+                    "A quoted value is missing its closing quotation mark.");
+            }
+
+            values.Add(value.ToString().Trim());
+            return values.ToArray();
+        }
+
+        private bool IsLegacyHeader(
+            string[] values)
+        {
+            return values.Length == 4
+                && values[0].Equals("Name", StringComparison.OrdinalIgnoreCase)
+                && values[1].Equals("Expression", StringComparison.OrdinalIgnoreCase)
+                && values[2].Equals("Units", StringComparison.OrdinalIgnoreCase)
+                && values[3].Equals("Export", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private bool IsNewFormatHeader(
+            string[] values)
+        {
+            if (values.Length != 6)
+            {
+                return false;
+            }
+
+            string[] expected =
+            {
+                "name",
+                "unit",
+                "equation",
+                "key",
+                "export",
+                "comment"
+            };
+
+            for (int index = 0; index < values.Length; index++)
+            {
+                if (NormalizeHeader(values[index]) != expected[index])
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private string NormalizeHeader(
+            string value)
+        {
+            string normalized =
+                value.Trim().Replace(" ", string.Empty).ToLowerInvariant();
+
+            if (normalized == "name"
+                || normalized == "parametername")
+            {
+                return "name";
+            }
+
+            if (normalized == "unit/type"
+                || normalized == "units"
+                || normalized == "unit")
+            {
+                return "unit";
+            }
+
+            if (normalized == "equation"
+                || normalized == "expression")
+            {
+                return "equation";
+            }
+
+            if (normalized == "key")
+            {
+                return "key";
+            }
+
+            if (normalized == "export"
+                || normalized == "exportparameter")
+            {
+                return "export";
+            }
+
+            if (normalized == "comment")
+            {
+                return "comment";
+            }
+
+            return normalized;
         }
 
         private bool ParseBoolean(
@@ -893,7 +1249,7 @@ namespace Inventor2023AIAssistant
             }
 
             throw new Exception(
-                "Export value '"
+                "Boolean value '"
                 + value
                 + "' is not recognized. "
                 + "Use true, false, yes, "

@@ -6,7 +6,7 @@ using Inventor;
 
 namespace Inventor2023AIAssistant
 {
-    public class AssistantPanel : UserControl
+    public class AssistantPanel : UserControl, IAssistantWorkflow
     {
         // ── Fields ────────────────────────────────────
         private Inventor.Application _inventorApplication;
@@ -14,6 +14,10 @@ namespace Inventor2023AIAssistant
         private List<ChatMessage> _conversationHistory;
         private bool _aiAvailable = false;
         private bool _isStreaming = false;
+        private bool _isSending;
+        private bool _robotViewActive;
+        private System.Windows.Forms.TextBox _robotPromptInput;
+        private Action _robotPromptFocus;
         private System.Windows.Forms.Timer _statusCheckTimer;
         private EngraveHandler _engraveHandler;
         private WriteActionsHandler _writeActions;
@@ -68,6 +72,12 @@ namespace Inventor2023AIAssistant
         private ListBox _lstLibrary;
         private Button _btnRunLibrary;
         private MiterFlangeHandler _miterFlange;
+
+        public event Action<string> TranscriptAppended;
+        public event Action TranscriptCleared;
+        public event Action StatusChanged;
+        public event Action SavedPromptsChanged;
+        public event Action BusyChanged;
 
 
         // ── Constructor ───────────────────────────────
@@ -201,6 +211,163 @@ namespace Inventor2023AIAssistant
             StartStatusChecker();
         }
 
+        public string TranscriptText
+        {
+            get { return _txtOutput?.Text ?? string.Empty; }
+        }
+
+        public string ConnectionStatus
+        {
+            get { return _lblStatus?.Text ?? "Checking AI..."; }
+        }
+
+        public bool AiAvailable
+        {
+            get { return _aiAvailable; }
+        }
+
+        public bool IsBusy
+        {
+            get { return _isSending || _isStreaming; }
+        }
+
+        public IList<string> GetSavedPrompts()
+        {
+            return new List<string>(_savedPrompts);
+        }
+
+        public IList<string> GetLibraryPrompts()
+        {
+            List<string> prompts = new List<string>();
+
+            if (_lstLibrary != null)
+            {
+                foreach (object item in _lstLibrary.Items)
+                {
+                    prompts.Add(Convert.ToString(item));
+                }
+            }
+
+            return prompts;
+        }
+
+        public System.Windows.Forms.TextBox CreateRobotPromptInput(
+            Action focusAction)
+        {
+            InventorTextBox input = new InventorTextBox();
+            input.Multiline = true;
+            input.AcceptsReturn = false;
+            input.AcceptsTab = false;
+            input.ScrollBars = ScrollBars.Vertical;
+            input.ShortcutsEnabled = true;
+            input.KeyDown += TxtPrompt_KeyDown;
+
+            _robotPromptInput = input;
+            _robotPromptFocus = focusAction;
+
+            return input;
+        }
+
+        public void SetRobotViewActive(bool active)
+        {
+            _robotViewActive = active;
+
+            if (!active && _robotPromptInput != null
+                && _robotPromptInput.IsDisposed)
+            {
+                _robotPromptInput = null;
+                _robotPromptFocus = null;
+            }
+        }
+
+        public Task SendPromptFromRobotAsync(
+            System.Windows.Forms.TextBox promptInput)
+        {
+            return SendPromptAsync(promptInput);
+        }
+
+        public void FocusPrompt()
+        {
+            System.Windows.Forms.TextBox promptInput =
+                GetActivePromptInput();
+
+            if (promptInput == null || promptInput.IsDisposed)
+            {
+                return;
+            }
+
+            if (promptInput.InvokeRequired)
+            {
+                promptInput.Invoke(new Action(FocusPrompt));
+                return;
+            }
+
+            if (_robotViewActive)
+            {
+                _robotPromptFocus?.Invoke();
+            }
+            else
+            {
+                _tabControl.SelectedTab = _tabChat;
+                promptInput.Focus();
+            }
+
+            promptInput.SelectionStart = promptInput.TextLength;
+            promptInput.SelectionLength = 0;
+        }
+
+        private System.Windows.Forms.TextBox GetActivePromptInput()
+        {
+            return _robotViewActive
+                ? _robotPromptInput
+                : _txtPrompt;
+        }
+
+        public void StartNewChatOrDiagnose()
+        {
+            BtnNewChat_Click(this, EventArgs.Empty);
+        }
+
+        public void RunSavedPromptAt(int index)
+        {
+            if (index < 0 || index >= _lstSavedPrompts.Items.Count)
+            {
+                return;
+            }
+
+            _lstSavedPrompts.SelectedIndex = index;
+            RunSavedPrompt();
+        }
+
+        public void DeleteSavedPromptAt(int index)
+        {
+            if (index < 0 || index >= _lstSavedPrompts.Items.Count)
+            {
+                return;
+            }
+
+            _lstSavedPrompts.SelectedIndex = index;
+            DeleteSelectedSavedPrompt();
+        }
+
+        public void RunLibraryPromptAt(int index)
+        {
+            if (index < 0 || index >= _lstLibrary.Items.Count)
+            {
+                return;
+            }
+
+            _lstLibrary.SelectedIndex = index;
+            RunLibraryPrompt();
+        }
+
+        public VaultButtonStrip CreateVaultButtonStrip()
+        {
+            VaultButtonStrip strip = new VaultButtonStrip();
+            BindVaultHandlers(strip);
+            return strip;
+        }
+
         // ── UI Build ──────────────────────────────────
         private void BuildUI()
         {
@@ -234,6 +401,19 @@ namespace Inventor2023AIAssistant
                 System.Drawing.Color.White;
             _btnNewChat.FlatStyle = FlatStyle.Flat;
             _btnNewChat.Click += BtnNewChat_Click;
+
+#if DEBUG
+            Button robotPreview = new Button();
+            robotPreview.Text = "Robot Preview";
+            robotPreview.Size = new System.Drawing.Size(96, 22);
+            robotPreview.TabStop = false;
+            robotPreview.BackColor =
+                System.Drawing.Color.FromArgb(63, 63, 70);
+            robotPreview.ForeColor = System.Drawing.Color.White;
+            robotPreview.FlatStyle = FlatStyle.Flat;
+            robotPreview.Click += (s, e) => OpenRobotPrototype();
+            Controls.Add(robotPreview);
+#endif
 
             _tabControl = new TabControl();
             _tabControl.Font =
@@ -308,77 +488,101 @@ namespace Inventor2023AIAssistant
             _tabChat.Controls.Add(_txtPrompt);
             _tabChat.Controls.Add(_btnSend);
 
-            // Vault Button Strip
-            var vaultStrip = new VaultButtonStrip();
-            vaultStrip.CheckOutClicked += (s, e) =>
-            {
-                if (_inventorApplication?.ActiveDocument
-                    == null)
-                {
-                    AppendOutput("⚠️ No active document.\n");
-                    return;
-                }
-                string fp = _inventorApplication
-                    .ActiveDocument.FullFileName;
-                var v = new VaultHandler();
-                AppendOutput(v.CheckOut(fp)
-                    ? $"✅ Checked out: " +
-                      $"{System.IO.Path.GetFileName(fp)}\n"
-                    : "❌ Check out failed.\n");
-            };
-            vaultStrip.CheckInClicked += (s, e) =>
-            {
-                if (_inventorApplication?.ActiveDocument
-                    == null)
-                {
-                    AppendOutput("⚠️ No active document.\n");
-                    return;
-                }
-                string fp = _inventorApplication
-                    .ActiveDocument.FullFileName;
-                string comment =
-                    Microsoft.VisualBasic.Interaction
-                    .InputBox(
-                        "Enter check in comment:",
-                        "Vault Check In", "");
-                var v = new VaultHandler();
-                AppendOutput(v.CheckIn(fp, comment)
-                    ? $"✅ Checked in: " +
-                      $"{System.IO.Path.GetFileName(fp)}\n"
-                    : "❌ Check in failed.\n");
-            };
-            vaultStrip.StatusClicked += (s, e) =>
-            {
-                if (_inventorApplication?.ActiveDocument
-                    == null)
-                {
-                    AppendOutput("⚠️ No active document.\n");
-                    return;
-                }
-                string fp = _inventorApplication
-                    .ActiveDocument.FullFileName;
-                var v = new VaultHandler();
-                AppendOutput(v.GetStatus(fp) + "\n");
-            };
-            vaultStrip.UndoClicked += (s, e) =>
-            {
-                if (_inventorApplication?.ActiveDocument
-                    == null)
-                {
-                    AppendOutput("⚠️ No active document.\n");
-                    return;
-                }
-                string fp = _inventorApplication
-                    .ActiveDocument.FullFileName;
-                var v = new VaultHandler();
-                AppendOutput(v.UndoCheckOut(fp)
-                    ? $"↩️ Undo successful: " +
-                      $"{System.IO.Path.GetFileName(fp)}\n"
-                    : "❌ Undo failed.\n");
-            };
+            VaultButtonStrip vaultStrip =
+                CreateVaultButtonStrip();
+
             _tabChat.Controls.Add(vaultStrip);
             _tabChat.Resize +=
                 (s, e) => LayoutChatTab();
+        }
+
+        private void BindVaultHandlers(
+            VaultButtonStrip strip)
+        {
+            strip.CheckOutClicked += VaultCheckOutClicked;
+            strip.CheckInClicked += VaultCheckInClicked;
+            strip.StatusClicked += VaultStatusClicked;
+            strip.UndoClicked += VaultUndoClicked;
+        }
+
+        private void VaultCheckOutClicked(
+            object sender,
+            EventArgs e)
+        {
+            if (_inventorApplication?.ActiveDocument == null)
+            {
+                AppendOutput("⚠️ No active document.\n");
+                return;
+            }
+
+            string filePath =
+                _inventorApplication.ActiveDocument.FullFileName;
+            VaultHandler handler = new VaultHandler();
+
+            AppendOutput(handler.CheckOut(filePath)
+                ? "✅ Checked out: "
+                    + System.IO.Path.GetFileName(filePath) + "\n"
+                : "❌ Check out failed.\n");
+        }
+
+        private void VaultCheckInClicked(
+            object sender,
+            EventArgs e)
+        {
+            if (_inventorApplication?.ActiveDocument == null)
+            {
+                AppendOutput("⚠️ No active document.\n");
+                return;
+            }
+
+            string filePath =
+                _inventorApplication.ActiveDocument.FullFileName;
+            string comment = Microsoft.VisualBasic.Interaction.InputBox(
+                "Enter check in comment:",
+                "Vault Check In",
+                "");
+            VaultHandler handler = new VaultHandler();
+
+            AppendOutput(handler.CheckIn(filePath, comment)
+                ? "✅ Checked in: "
+                    + System.IO.Path.GetFileName(filePath) + "\n"
+                : "❌ Check in failed.\n");
+        }
+
+        private void VaultStatusClicked(
+            object sender,
+            EventArgs e)
+        {
+            if (_inventorApplication?.ActiveDocument == null)
+            {
+                AppendOutput("⚠️ No active document.\n");
+                return;
+            }
+
+            string filePath =
+                _inventorApplication.ActiveDocument.FullFileName;
+            VaultHandler handler = new VaultHandler();
+            AppendOutput(handler.GetStatus(filePath) + "\n");
+        }
+
+        private void VaultUndoClicked(
+            object sender,
+            EventArgs e)
+        {
+            if (_inventorApplication?.ActiveDocument == null)
+            {
+                AppendOutput("⚠️ No active document.\n");
+                return;
+            }
+
+            string filePath =
+                _inventorApplication.ActiveDocument.FullFileName;
+            VaultHandler handler = new VaultHandler();
+
+            AppendOutput(handler.UndoCheckOut(filePath)
+                ? "↩️ Undo successful: "
+                    + System.IO.Path.GetFileName(filePath) + "\n"
+                : "❌ Undo failed.\n");
         }
 
         private void BuildSavedTab()
@@ -414,15 +618,8 @@ namespace Inventor2023AIAssistant
             _btnDeletePrompt.ForeColor =
                 System.Drawing.Color.White;
             _btnDeletePrompt.FlatStyle = FlatStyle.Flat;
-            _btnDeletePrompt.Click += (s, e) =>
-            {
-                if (_lstSavedPrompts.SelectedIndex < 0)
-                    return;
-                int idx =
-                    _lstSavedPrompts.SelectedIndex;
-                _savedPrompts.RemoveAt(idx);
-                _lstSavedPrompts.Items.RemoveAt(idx);
-            };
+            _btnDeletePrompt.Click +=
+                (s, e) => DeleteSelectedSavedPrompt();
 
             _tabSaved.Controls.Add(_lstSavedPrompts);
             _tabSaved.Controls.Add(_btnRunPrompt);
@@ -559,8 +756,24 @@ namespace Inventor2023AIAssistant
             _lblStatus.Location =
                 new System.Drawing.Point(pad, 5);
             _lblStatus.Width = w - 100 - pad;
+#if DEBUG
+            _lblStatus.Width = Math.Max(40, w - 210 - pad);
+#endif
             _btnNewChat.Location =
                 new System.Drawing.Point(w - 93, 3);
+#if DEBUG
+            foreach (Control control in Controls)
+            {
+                if (control is Button
+                    && control.Text == "Robot Preview")
+                {
+                    control.Location =
+                        new System.Drawing.Point(w - 196, 3);
+                    control.Visible = w >= 320;
+                    break;
+                }
+            }
+#endif
 
             int tabTop = 30;
             int tabHeight =
@@ -667,7 +880,8 @@ namespace Inventor2023AIAssistant
         private void TxtPrompt_KeyDown(
             object sender, KeyEventArgs e)
         {
-          
+            System.Windows.Forms.TextBox promptInput =
+                sender as System.Windows.Forms.TextBox ?? _txtPrompt;
 
             if (e.KeyCode == Keys.Up)
             {
@@ -679,10 +893,10 @@ namespace Inventor2023AIAssistant
                         _promptHistory.Count - 1;
                 else if (_promptHistoryIndex > 0)
                     _promptHistoryIndex--;
-                _txtPrompt.Text =
+                promptInput.Text =
                     _promptHistory[_promptHistoryIndex];
-                _txtPrompt.SelectionStart =
-                    _txtPrompt.TextLength;
+                promptInput.SelectionStart =
+                    promptInput.TextLength;
                 return;
             }
 
@@ -696,14 +910,14 @@ namespace Inventor2023AIAssistant
                     _promptHistory.Count - 1)
                 {
                     _promptHistoryIndex = -1;
-                    _txtPrompt.Clear();
+                    promptInput.Clear();
                     return;
                 }
                 _promptHistoryIndex++;
-                _txtPrompt.Text =
+                promptInput.Text =
                     _promptHistory[_promptHistoryIndex];
-                _txtPrompt.SelectionStart =
-                    _txtPrompt.TextLength;
+                promptInput.SelectionStart =
+                    promptInput.TextLength;
                 return;
             }
 
@@ -711,18 +925,18 @@ namespace Inventor2023AIAssistant
             {
                 e.Handled = true;
                 e.SuppressKeyPress = true;
-                int pos = _txtPrompt.SelectionStart;
-                int len = _txtPrompt.SelectionLength;
+                int pos = promptInput.SelectionStart;
+                int len = promptInput.SelectionLength;
                 string t =
-                    _txtPrompt.Text ?? string.Empty;
+                    promptInput.Text ?? string.Empty;
                 if (len > 0) t = t.Remove(pos, len);
                 t = t.Insert(
                     pos, System.Environment.NewLine);
-                _txtPrompt.Text = t;
-                _txtPrompt.SelectionStart =
+                promptInput.Text = t;
+                promptInput.SelectionStart =
                     pos +
                     System.Environment.NewLine.Length;
-                _txtPrompt.SelectionLength = 0;
+                promptInput.SelectionLength = 0;
                 return;
             }
 
@@ -732,7 +946,7 @@ namespace Inventor2023AIAssistant
                 e.SuppressKeyPress = true;
                 System.Diagnostics.Debug.WriteLine(
                     "Enter — calling SendPromptAsync");
-                _ = SendPromptAsync();
+                _ = SendPromptAsync(promptInput);
                 return;
             }
         }
@@ -863,88 +1077,104 @@ namespace Inventor2023AIAssistant
         }
 
         // ── Public methods ────────────────────────────
-        public void FocusPrompt()
-        {
-            if (_txtPrompt == null ||
-                _txtPrompt.IsDisposed) return;
-            if (_txtPrompt.InvokeRequired)
-            {
-                _txtPrompt.Invoke(
-                    new Action(FocusPrompt));
-                return;
-            }
-            _tabControl.SelectedTab = _tabChat;
-            _txtPrompt.Focus();
-            _txtPrompt.SelectionStart =
-                _txtPrompt.TextLength;
-            _txtPrompt.SelectionLength = 0;
-        }
-
         public void InsertSpaceFromInventor()
         {
-            if (_txtPrompt == null ||
-                _txtPrompt.IsDisposed) return;
-            if (_tabControl.SelectedTab != _tabChat)
-                return;
-            if (_txtPrompt.InvokeRequired)
+            System.Windows.Forms.TextBox promptInput =
+                GetActivePromptInput();
+
+            if (promptInput == null || promptInput.IsDisposed)
             {
-                _txtPrompt.Invoke(
+                return;
+            }
+
+            if (!_robotViewActive
+                && _tabControl.SelectedTab != _tabChat)
+            {
+                return;
+            }
+
+            if (promptInput.InvokeRequired)
+            {
+                promptInput.Invoke(
                     new Action(InsertSpaceFromInventor));
                 return;
             }
-            int start = _txtPrompt.SelectionStart;
-            int length = _txtPrompt.SelectionLength;
+
+            int start = promptInput.SelectionStart;
+            int length = promptInput.SelectionLength;
             string text =
-                _txtPrompt.Text ?? string.Empty;
+                promptInput.Text ?? string.Empty;
             if (length > 0)
                 text = text.Remove(start, length);
             text = text.Insert(start, " ");
-            _txtPrompt.Text = text;
-            _txtPrompt.SelectionStart = start + 1;
-            _txtPrompt.SelectionLength = 0;
+            promptInput.Text = text;
+            promptInput.SelectionStart = start + 1;
+            promptInput.SelectionLength = 0;
         }
 
         public void SendEnterFromInventor()
         {
-            if (_txtPrompt == null ||
-                _txtPrompt.IsDisposed) return;
+            System.Windows.Forms.TextBox promptInput =
+                GetActivePromptInput();
+
+            if (promptInput == null || promptInput.IsDisposed)
+            {
+                return;
+            }
+
             if (this.InvokeRequired)
             {
                 this.Invoke(
                     new Action(SendEnterFromInventor));
                 return;
             }
-            if (_tabControl.SelectedTab != _tabChat)
+
+            if (!_robotViewActive
+                && _tabControl.SelectedTab != _tabChat)
+            {
                 return;
-            _ = SendPromptAsync();
+            }
+
+            _ = SendPromptAsync(promptInput);
         }
 
         public void InsertNewlineFromInventor()
         {
-            if (_txtPrompt == null ||
-                _txtPrompt.IsDisposed) return;
-            if (_tabControl.SelectedTab != _tabChat)
-                return;
-            if (_txtPrompt.InvokeRequired)
+            System.Windows.Forms.TextBox promptInput =
+                GetActivePromptInput();
+
+            if (promptInput == null || promptInput.IsDisposed)
             {
-                _txtPrompt.Invoke(
+                return;
+            }
+
+            if (!_robotViewActive
+                && _tabControl.SelectedTab != _tabChat)
+            {
+                return;
+            }
+
+            if (promptInput.InvokeRequired)
+            {
+                promptInput.Invoke(
                     new Action(
                         InsertNewlineFromInventor));
                 return;
             }
-            int start = _txtPrompt.SelectionStart;
-            int length = _txtPrompt.SelectionLength;
+
+            int start = promptInput.SelectionStart;
+            int length = promptInput.SelectionLength;
             string text =
-                _txtPrompt.Text ?? string.Empty;
+                promptInput.Text ?? string.Empty;
             if (length > 0)
                 text = text.Remove(start, length);
             text = text.Insert(
                 start, System.Environment.NewLine);
-            _txtPrompt.Text = text;
-            _txtPrompt.SelectionStart =
+            promptInput.Text = text;
+            promptInput.SelectionStart =
                 start +
                 System.Environment.NewLine.Length;
-            _txtPrompt.SelectionLength = 0;
+            promptInput.SelectionLength = 0;
         }
 
         public void LogKeyPress(int keyASCII) { }
@@ -969,6 +1199,7 @@ namespace Inventor2023AIAssistant
             if (_savedPrompts.Contains(t)) return;
             _savedPrompts.Add(t);
             _lstSavedPrompts.Items.Add(t);
+            SavedPromptsChanged?.Invoke();
         }
 
         private void RunSavedPrompt()
@@ -982,6 +1213,19 @@ namespace Inventor2023AIAssistant
             _tabControl.SelectedTab = _tabChat;
             _txtPrompt.Text = s;
             _ = SendPromptAsync();
+        }
+
+        private void DeleteSelectedSavedPrompt()
+        {
+            if (_lstSavedPrompts.SelectedIndex < 0)
+            {
+                return;
+            }
+
+            int index = _lstSavedPrompts.SelectedIndex;
+            _savedPrompts.RemoveAt(index);
+            _lstSavedPrompts.Items.RemoveAt(index);
+            SavedPromptsChanged?.Invoke();
         }
 
         // ── New chat / diagnostic ─────────────────────
@@ -1002,8 +1246,10 @@ namespace Inventor2023AIAssistant
             InitializeConversation();
             _txtOutput.Clear();
             _txtPrompt.Clear();
+            _robotPromptInput?.Clear();
+            TranscriptCleared?.Invoke();
             FocusPrompt();
-            _txtOutput.AppendText(
+            AppendOutput(
                 "\u2500\u2500 New Chat Started \u2500\u2500" +
                 System.Environment.NewLine +
                 System.Environment.NewLine);
@@ -1184,6 +1430,8 @@ namespace Inventor2023AIAssistant
                     System.Drawing.Color.OrangeRed;
                 _btnNewChat.Text = "Diagnose";
             }
+
+            StatusChanged?.Invoke();
         }
 
         // ── Parameter modifier ────────────────────────
@@ -1284,13 +1532,18 @@ namespace Inventor2023AIAssistant
         }
 
         // ── Send prompt ───────────────────────────────
-        private async Task SendPromptAsync()
+        private Task SendPromptAsync()
         {
-            if (_isStreaming) return;
-            if (_txtPrompt == null ||
-                _txtPrompt.IsDisposed) return;
+            return SendPromptAsync(_txtPrompt);
+        }
 
-            string prompt = _txtPrompt.Text;
+        private async Task SendPromptAsync(
+            System.Windows.Forms.TextBox promptInput)
+        {
+            if (_isStreaming || _isSending) return;
+            if (promptInput == null || promptInput.IsDisposed) return;
+
+            string prompt = promptInput.Text;
             if (string.IsNullOrWhiteSpace(prompt))
             { FocusPrompt(); return; }
 
@@ -1299,9 +1552,15 @@ namespace Inventor2023AIAssistant
             AppendOutput(
                 "You: " + prompt +
                 System.Environment.NewLine);
-            _txtPrompt.Clear();
+            promptInput.Clear();
+            if (!ReferenceEquals(promptInput, _txtPrompt))
+            {
+                _txtPrompt.Clear();
+            }
             FocusPrompt();
             _btnSend.Enabled = false;
+            _isSending = true;
+            BusyChanged?.Invoke();
 
             try
             {
@@ -1682,7 +1941,9 @@ namespace Inventor2023AIAssistant
             }
             finally
             {
+                _isSending = false;
                 _btnSend.Enabled = true;
+                BusyChanged?.Invoke();
             }
         }
 
@@ -1705,30 +1966,13 @@ namespace Inventor2023AIAssistant
                     _conversationHistory,
                     token =>
                     {
-                        if (_txtOutput == null ||
-                            _txtOutput.IsDisposed)
-                            return;
-                        if (_txtOutput.InvokeRequired)
-                            _txtOutput.Invoke(
-                                new Action(() =>
-                                    _txtOutput
-                                        .AppendText(
-                                            token)));
-                        else
-                            _txtOutput.AppendText(token);
+                        AppendOutput(token);
                     },
                     complete =>
                     {
-                        Action nl = () =>
-                            _txtOutput.AppendText(
-                                System.Environment
-                                    .NewLine +
-                                System.Environment
-                                    .NewLine);
-                        if (_txtOutput.InvokeRequired)
-                            _txtOutput.Invoke(nl);
-                        else
-                            nl();
+                        AppendOutput(
+                            System.Environment.NewLine
+                            + System.Environment.NewLine);
                         _conversationHistory.Add(
                             new ChatMessage
                             {
@@ -1763,7 +2007,25 @@ namespace Inventor2023AIAssistant
                 return;
             }
             _txtOutput.AppendText(text);
+            TranscriptAppended?.Invoke(text);
         }
+
+#if DEBUG
+        private void OpenRobotPrototype()
+        {
+            using (RobotPreviewForm preview = new RobotPreviewForm(
+                this,
+                _inventorApplication))
+            {
+                preview.FormClosed += (s, e) =>
+                {
+                    SetRobotViewActive(false);
+                    FocusPrompt();
+                };
+                preview.ShowDialog(this);
+            }
+        }
+#endif
 
         // ── Context / fallback ────────────────────────
         private string BuildContextualUserPrompt(
